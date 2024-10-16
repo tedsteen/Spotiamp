@@ -173,12 +173,49 @@ function durationToHHMMSS(ts) {
 
 window.addEventListener("DOMContentLoaded", () => {
   const ticker = new TextTicker(document.getElementById("text"));
-  async function play(url) {
-    let trackData = await invoke("play", { uri: spotifyUrlToUri(url) }).catch(handleError);
-    console.info(`track data:`, trackData);
-    const timeString = durationToHHMMSS(trackData.duration);
-    ticker.setText(`12. ${trackData.artist} - ${trackData.name} (${timeString})`);
+  let loadedUrl;
+  let state = "stopped";
+
+  async function load(url) {
+    await invoke("load", { uri: spotifyUrlToUri(url) }).catch(handleError).then((trackData) => {
+      loadedUrl = url;
+      const timeString = durationToHHMMSS(trackData.duration);
+      ticker.setText(`12. ${trackData.artist} - ${trackData.name} (${timeString})`);
+    });
   }
+
+  async function play() {
+    if (loadedUrl) {
+      if (state != "paused") {
+        await load(loadedUrl);
+      }
+      await invoke("play").catch(handleError);
+      state = "playing";
+    }
+  }
+
+  async function pause() {
+    if (state == "playing") {
+      await invoke("pause").catch(handleError);
+      state = "paused";
+    }
+  }
+
+  async function stop() {
+    if (state != "stopped") {
+      await invoke("stop").catch(handleError);
+      state = "stopped";
+    }
+  }
+
+  const playBtnEl = document.getElementById("main-btn-play");
+  playBtnEl.addEventListener("click", play);
+
+  const pauseBtnEl = document.getElementById("main-btn-pause");
+  pauseBtnEl.addEventListener("click", pause);
+
+  const stopBtnEl = document.getElementById("main-btn-stop");
+  stopBtnEl.addEventListener("click", stop);
 
   const volume = document.getElementById("volume");
   get_volume().then(function (volumePct) {
@@ -202,7 +239,8 @@ window.addEventListener("DOMContentLoaded", () => {
     for (const item of ev.dataTransfer.items) {
       if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
         item.getAsString((url) => {
-          play(url);
+          ticker.setText(`Loading...`);
+          load(url);
         });
       }
     }

@@ -15,7 +15,7 @@ async fn get_volume() -> Result<u16, ()> {
     Ok(spotify_player.get_volume())
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct TrackData {
     artist: String,
     name: String,
@@ -37,19 +37,54 @@ impl From<Track> for TrackData {
 }
 
 #[tauri::command]
-async fn play(uri: &str) -> Result<TrackData, String> {
-    log::debug!("Play '{uri}'");
+async fn play() -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+    spotify_player
+        .play()
+        .await
+        .map_err(|e| format!("TODO: Failed to play ({e:?})"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn pause() -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+
+    spotify_player
+        .pause()
+        .await
+        .map_err(|e| format!("TODO: Failed to pause ({e:?})"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn stop() -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+
+    spotify_player
+        .stop()
+        .await
+        .map_err(|e| format!("TODO: Failed to stop ({e:?})"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn load(uri: &str) -> Result<TrackData, String> {
     let spotify_player = &mut player().lock().await;
 
     let track = spotify_player
-        .play(
+        .load(
             SpotifyId::from_uri(uri)
                 .map_err(|e| format!("TODO: Failed to load spotify uri '{uri}' ({e:?})"))?,
         )
         .await
-        .map_err(|e| format!("Could not play track ({e:?})"))?;
-    println!("track: {track:?}");
-    Ok(TrackData::from(track))
+        .map_err(|e| format!("Could not load track ({e:?})"))?;
+    let track_data = TrackData::from(track);
+    log::trace!("Loaded track: {track_data:?}");
+    Ok(track_data)
 }
 
 pub fn player() -> &'static Mutex<SpotifyPlayer> {
@@ -62,7 +97,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![play, get_volume])
+        .invoke_handler(tauri::generate_handler![
+            load, play, pause, stop, get_volume
+        ])
         .setup(|app| {
             app.listen("volume-change", move |event| {
                 if let Ok(volume) = serde_json::from_str::<u16>(event.payload()) {

@@ -10,8 +10,8 @@
   image-rendering: pixelated;
   transform-origin: top left;
   transform: scale(var(--zoom));
-  top: calc(var(--sprite-y) * var(--zoom));
   left: calc(var(--sprite-x) * var(--zoom));
+  top: calc(var(--sprite-y) * var(--zoom));
 }
 
 /* ------ TITLEBAR ------ */
@@ -78,8 +78,8 @@
   overflow: hidden;
   width: calc(31 * 5px * var(--zoom));
   height: calc(6px * var(--zoom));
-  top: calc(var(--text-y) * var(--zoom));
   left: calc(var(--text-x) * var(--zoom));
+  top: calc(var(--text-y) * var(--zoom));
 }
 
 #text {
@@ -95,3 +95,30 @@
 }
 
 /* ------ /TEXT ------ */
+
+/* ------ CBUTTONS ------ */
+.control-buttons-sprite {
+  --sprite-url: url(assets/skins/base-2.91/CBUTTONS.BMP);
+  --button-width: 23px;
+  --button-height: 18px;
+  --button-state: 0;
+  width: var(--button-width);
+  height: var(--button-height);
+  background-position: 0px 0px;
+  left: calc(var(--button-x) * var(--zoom));
+  top: calc(var(--button-y) * var(--zoom));
+}
+
+input[type="button"],
+.control-buttons-sprite {
+  border: 0px;
+  background-position: calc(var(--button-idx) * var(--button-width) * -1) 0px;
+}
+
+input[type="button"]:active,
+.control-buttons-sprite {
+  background-position: calc(var(--button-idx) * var(--button-width) * -1) calc(var(--button-height));
+}
+
+
+/* ------ /CBUTTONS ------ */

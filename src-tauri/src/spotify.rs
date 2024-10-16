@@ -121,13 +121,43 @@ impl SpotifyPlayer {
         self.player.clone().ok_or(SessionError::LoginFailed)
     }
 
-    pub async fn play(&mut self, track: SpotifyId) -> Result<Track, PlayError> {
-        log::debug!("Playing track: {:?}", track);
+    pub async fn play(&mut self) -> Result<(), PlayError> {
+        log::debug!("Play!");
         let player = self
             .get_player()
             .await
             .map_err(|e| PlayError::SessionError { e })?;
-        player.load(track, true, 0);
+        player.play();
+        Ok(())
+    }
+
+    pub async fn pause(&mut self) -> Result<(), PlayError> {
+        log::debug!("Pause!");
+        let player = self
+            .get_player()
+            .await
+            .map_err(|e| PlayError::SessionError { e })?;
+        player.pause();
+        Ok(())
+    }
+
+    pub async fn stop(&mut self) -> Result<(), PlayError> {
+        log::debug!("Stop!");
+        let player = self
+            .get_player()
+            .await
+            .map_err(|e| PlayError::SessionError { e })?;
+        player.stop();
+        Ok(())
+    }
+
+    pub async fn load(&mut self, track: SpotifyId) -> Result<Track, PlayError> {
+        log::debug!("Loading track: {:?}", track);
+        let player = self
+            .get_player()
+            .await
+            .map_err(|e| PlayError::SessionError { e })?;
+        player.load(track, false, 0);
 
         let track = Track::get(&self.session, &track)
             .await

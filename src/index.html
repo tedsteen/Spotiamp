@@ -11,15 +11,36 @@
 
 <body>
   <div class="sprite main-sprite" id="main"></div>
+  <div data-tauri-drag-region class="sprite titlebar-sprite" id="titlebar"></div>
 
   <div class="text-container" style="--text-x: 111px; --text-y: 27px;">
     <div id="text">
     </div>
   </div>
 
-  <div data-tauri-drag-region class="sprite titlebar-sprite" id="titlebar"></div>
-
   <input type="range" class="sprite volume-sprite" id="volume" min="0" max="100" />
+
+  <input type="button" class="sprite control-buttons-sprite"
+    style="--button-x: calc(16px + (var(--button-width) * 0)); --button-y: 88px; --button-idx: 0;"
+    id="main-btn-previous" />
+  <input type="button" class="sprite control-buttons-sprite"
+    style="--button-x: calc(16px + (var(--button-width) * 1)); --button-y: 88px; --button-idx: 1;" id="main-btn-play" />
+
+  <input type="button" class="sprite control-buttons-sprite"
+    style="--button-x: calc(16px + (var(--button-width) * 2)); --button-y: 88px; --button-idx: 2;"
+    id="main-btn-pause" />
+
+  <input type="button" class="sprite control-buttons-sprite"
+    style="--button-x: calc(16px + (var(--button-width) * 3)); --button-y: 88px; --button-idx: 3;" id="main-btn-stop" />
+
+  <input type="button" class="sprite control-buttons-sprite"
+    style="--button-x: calc(16px + (var(--button-width) * 4)); --button-y: 88px; --button-idx: 4; width: 22px; "
+    id="main-btn-next" />
+
+  <!-- <div class="sprite control-buttons-sprite"
+    style="--button-width: 23px; --button-x: calc(22px + (var(--button-width) * 5)); --button-y: 89px; --button-idx: 5; width: 21px; height: 16px; "
+    id="main">
+  </div> -->
 </body>
 
 </html>
