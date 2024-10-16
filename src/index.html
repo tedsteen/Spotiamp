@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotiamp</title>
+  <script type="module" src="/main.js" defer></script>
+</head>
+
+<body>
+  <div class="sprite main-sprite" id="main"></div>
+
+  <div class="text-container" style="--text-x: 111px; --text-y: 27px;">
+    <div id="text">
+    </div>
+  </div>
+
+  <div data-tauri-drag-region class="sprite titlebar-sprite" id="titlebar"></div>
+
+  <input type="range" class="sprite volume-sprite" id="volume" min="0" max="100" />
+</body>
+
+</html>
