@@ -1,0 +1,96 @@
+use librespot::{core::SpotifyId, metadata::Track};
+use serde::Serialize;
+use tauri::{App, WebviewWindow};
+
+use crate::player;
+
+#[derive(Debug, Serialize)]
+pub struct TrackData {
+    artist: String,
+    name: String,
+    duration: String,
+}
+
+impl From<Track> for TrackData {
+    fn from(track: Track) -> Self {
+        Self {
+            artist: track
+                .artists
+                .first()
+                .map(|artist| artist.name.clone())
+                .unwrap_or("Unknown Artist".to_string()),
+            name: track.name,
+            duration: format!("{}", track.duration),
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn get_volume() -> Result<u16, ()> {
+    let spotify_player = &mut player().lock().await;
+    Ok(spotify_player.get_volume())
+}
+
+#[tauri::command]
+pub async fn play() -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+    spotify_player
+        .play()
+        .await
+        .map_err(|e| format!("TODO: Failed to play ({e:?})"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pause() -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+
+    spotify_player
+        .pause()
+        .await
+        .map_err(|e| format!("TODO: Failed to pause ({e:?})"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn stop() -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+
+    spotify_player
+        .stop()
+        .await
+        .map_err(|e| format!("TODO: Failed to stop ({e:?})"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn load(uri: &str) -> Result<TrackData, String> {
+    let spotify_player = &mut player().lock().await;
+
+    let track = spotify_player
+        .load(
+            SpotifyId::from_uri(uri)
+                .map_err(|e| format!("TODO: Failed to load spotify uri '{uri}' ({e:?})"))?,
+        )
+        .await
+        .map_err(|e| format!("Could not load track ({e:?})"))?;
+    let track_data = TrackData::from(track);
+    log::trace!("Loaded track: {track_data:?}");
+    Ok(track_data)
+}
+
+pub fn build_window(app: &App, zoom: f64) -> Result<WebviewWindow, tauri::Error> {
+    tauri::WebviewWindowBuilder::new(app, "player", tauri::WebviewUrl::App("player.html".into()))
+        .title("Player")
+        .inner_size(275.0 * zoom, 116.0 * zoom)
+        .decorations(false)
+        .closable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .resizable(false)
+        .disable_drag_drop_handler()
+        .build()
+}

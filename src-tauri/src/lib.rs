@@ -1,91 +1,13 @@
 use std::sync::OnceLock;
 
-use librespot::{core::SpotifyId, metadata::Track};
-use serde::Serialize;
 use spotify::SpotifyPlayer;
-use tauri::{async_runtime::spawn, Listener, Manager, PhysicalSize, Size};
+use tauri::{async_runtime::spawn, Listener};
 use tokio::sync::Mutex;
 mod oauth;
+mod player_window;
+mod playlist_window;
 mod settings;
 mod spotify;
-
-#[tauri::command]
-async fn get_volume() -> Result<u16, ()> {
-    let spotify_player = &mut player().lock().await;
-    Ok(spotify_player.get_volume())
-}
-
-#[derive(Debug, Serialize)]
-struct TrackData {
-    artist: String,
-    name: String,
-    duration: String,
-}
-
-impl From<Track> for TrackData {
-    fn from(track: Track) -> Self {
-        Self {
-            artist: track
-                .artists
-                .first()
-                .map(|artist| artist.name.clone())
-                .unwrap_or("Unknown Artist".to_string()),
-            name: track.name,
-            duration: format!("{}", track.duration),
-        }
-    }
-}
-
-#[tauri::command]
-async fn play() -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-    spotify_player
-        .play()
-        .await
-        .map_err(|e| format!("TODO: Failed to play ({e:?})"))?;
-
-    Ok(())
-}
-
-#[tauri::command]
-async fn pause() -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-
-    spotify_player
-        .pause()
-        .await
-        .map_err(|e| format!("TODO: Failed to pause ({e:?})"))?;
-
-    Ok(())
-}
-
-#[tauri::command]
-async fn stop() -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-
-    spotify_player
-        .stop()
-        .await
-        .map_err(|e| format!("TODO: Failed to stop ({e:?})"))?;
-
-    Ok(())
-}
-
-#[tauri::command]
-async fn load(uri: &str) -> Result<TrackData, String> {
-    let spotify_player = &mut player().lock().await;
-
-    let track = spotify_player
-        .load(
-            SpotifyId::from_uri(uri)
-                .map_err(|e| format!("TODO: Failed to load spotify uri '{uri}' ({e:?})"))?,
-        )
-        .await
-        .map_err(|e| format!("Could not load track ({e:?})"))?;
-    let track_data = TrackData::from(track);
-    log::trace!("Loaded track: {track_data:?}");
-    Ok(track_data)
-}
 
 pub fn player() -> &'static Mutex<SpotifyPlayer> {
     static MEM: OnceLock<Mutex<SpotifyPlayer>> = OnceLock::new();
@@ -98,7 +20,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            load, play, pause, stop, get_volume
+            player_window::load,
+            player_window::play,
+            player_window::pause,
+            player_window::stop,
+            player_window::get_volume
         ])
         .setup(|app| {
             app.listen("volume-change", move |event| {
@@ -108,17 +34,18 @@ pub fn run() {
                     });
                 }
             });
+            let zoom = 2.0;
 
-            for (_, w) in app.webview_windows() {
-                if let Ok(size) = w.outer_size() {
-                    let zoom = 2.0;
-                    w.set_size(Size::Physical(PhysicalSize {
-                        width: (size.width as f32 * zoom) as u32,
-                        height: (size.height as f32 * zoom) as u32,
-                    }))
-                    .unwrap();
-                }
-            }
+            let player_window = player_window::build_window(app, zoom)?;
+
+            let mut playlist_position = player_window.outer_position()?;
+            playlist_position.y += player_window.outer_size()?.height as i32;
+            playlist_window::build_window(
+                app,
+                zoom,
+                playlist_position.to_logical(player_window.scale_factor()?),
+            )?;
+
             Ok(())
         })
         .run(tauri::generate_context!())
