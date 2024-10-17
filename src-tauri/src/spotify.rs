@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    ops::Deref,
+    sync::{Arc, Mutex},
+};
 
 use crate::oauth::{OAuthError, OAuthFlow};
 use librespot::{
@@ -18,34 +21,40 @@ use oauth2::TokenResponse;
 use thiserror::Error;
 
 use crate::settings::get_config_dir;
-
-pub struct SpotifyPlayer {
-    player: Option<Arc<Player>>,
-    volume: Arc<Mutex<u16>>,
-    cache: Cache,
+struct LoggedInPlayer {
+    player: Arc<Player>,
     session: Session,
 }
-const DEFAULT_VOLUME: u16 = 80;
-impl SpotifyPlayer {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        let cache = get_config_dir()
-            .and_then(|config_dir| {
-                Cache::new(
-                    Some(config_dir.clone()),
-                    Some(config_dir.clone()),
-                    Some(config_dir),
-                    None,
-                )
-                .ok()
-            })
-            .expect("a cache to be created");
-        Self {
-            player: None,
-            volume: Arc::new(Mutex::new(cache.volume().unwrap_or(DEFAULT_VOLUME))),
-            cache: cache.clone(),
-            session: Session::new(SessionConfig::default(), Some(cache)),
+impl LoggedInPlayer {
+    async fn new(cache: Cache, volume: Arc<Mutex<u16>>) -> Result<Self, SessionError> {
+        let session = Session::new(SessionConfig::default(), Some(cache));
+        let backend = audio_backend::find(None).unwrap();
+        let player_config = PlayerConfig::default();
+
+        struct SpotiyampVolumeGetter {
+            volume: Arc<Mutex<u16>>,
         }
+
+        impl VolumeGetter for SpotiyampVolumeGetter {
+            fn attenuation_factor(&self) -> f64 {
+                *self.volume.lock().unwrap() as f64 / 100.0
+            }
+        }
+
+        let player = Player::new(
+            player_config,
+            session.clone(),
+            Box::new(SpotiyampVolumeGetter {
+                volume: volume.clone(),
+            }),
+            move || {
+                let audio_format = AudioFormat::default();
+                backend(None, audio_format)
+            },
+        );
+        let instance = Self { session, player };
+        instance.login_session().await?;
+        Ok(instance)
     }
 
     async fn get_credentials_from_oauth() -> Result<Credentials, SessionError> {
@@ -73,7 +82,7 @@ impl SpotifyPlayer {
 
     async fn login_session(&self) -> Result<Session, SessionError> {
         log::debug!("Getting credentials");
-        if let Some(credentials) = self.cache.credentials() {
+        if let Some(credentials) = self.session.cache().and_then(|cache| cache.credentials()) {
             log::debug!("Credentials found in cache, trying that...");
             if self.session.connect(credentials, true).await.is_ok() {
                 log::debug!("Success! Using cached credentials");
@@ -89,44 +98,76 @@ impl SpotifyPlayer {
         log::debug!("Success! Using credentials from OAuth-flow and saving them for next time");
         Ok(self.session.clone())
     }
+}
 
-    async fn get_player(&mut self) -> Result<Arc<Player>, SessionError> {
-        if self.player.is_none() {
-            let session = self.login_session().await?;
-            let backend = audio_backend::find(None).unwrap();
-            let player_config = PlayerConfig::default();
+impl Deref for LoggedInPlayer {
+    type Target = Player;
 
-            struct SpotiyampVolumeGetter {
-                volume: Arc<Mutex<u16>>,
-            }
+    fn deref(&self) -> &Self::Target {
+        &self.player
+    }
+}
 
-            impl VolumeGetter for SpotiyampVolumeGetter {
-                fn attenuation_factor(&self) -> f64 {
-                    *self.volume.lock().unwrap() as f64 / 100.0
-                }
-            }
+pub struct SpotifyPlayer {
+    player: Option<LoggedInPlayer>,
+    volume: Arc<Mutex<u16>>,
+    cache: Cache,
+}
 
-            self.player = Some(Player::new(
-                player_config,
-                session.clone(),
-                Box::new(SpotiyampVolumeGetter {
-                    volume: self.volume.clone(),
-                }),
-                move || {
-                    let audio_format = AudioFormat::default();
-                    backend(None, audio_format)
-                },
-            ));
+const DEFAULT_VOLUME: u16 = 80;
+impl SpotifyPlayer {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        let cache = get_config_dir()
+            .and_then(|config_dir| {
+                Cache::new(
+                    Some(config_dir.clone()),
+                    Some(config_dir.clone()),
+                    Some(config_dir),
+                    None,
+                )
+                .ok()
+            })
+            .expect("a cache to be created");
+        Self {
+            player: None,
+            volume: Arc::new(Mutex::new(cache.volume().unwrap_or(DEFAULT_VOLUME))),
+            cache: cache.clone(),
         }
-        self.player.clone().ok_or(SessionError::LoginFailed)
     }
 
-    pub async fn play(&mut self) -> Result<(), PlayError> {
+    async fn get_player(&mut self) -> Result<&mut LoggedInPlayer, SessionError> {
+        if self.player.is_none() {
+            self.player = Some(LoggedInPlayer::new(self.cache.clone(), self.volume.clone()).await?);
+        }
+        //TODO: Make sure the session is still logged in
+        // Maybe something like this in LoggedInPlayer
+        // fn do_with_player<T, E>(&self, fun: impl FnOnce(&Player) -> Result<T, SessionError) -> Result<T, E> {
+        //     match fun(&self.player) {
+        //         Ok(res) => Ok(res),
+        //         Err(_) => {
+        //         },
+        //     }
+        // }
+
+        Ok(self.player.as_mut().expect("a player"))
+    }
+
+    pub async fn play(&mut self, uri: Option<&str>) -> Result<(), PlayError> {
         log::debug!("Play!");
         let player = self
             .get_player()
             .await
             .map_err(|e| PlayError::SessionError { e })?;
+
+        if let Some(uri) = uri {
+            player.load(
+                SpotifyId::from_uri(uri).map_err(|e| PlayError::TrackMetadataError { e })?,
+                false,
+                0,
+            );
+        }
+
         player.play();
         Ok(())
     }
@@ -151,18 +192,18 @@ impl SpotifyPlayer {
         Ok(())
     }
 
-    pub async fn load(&mut self, track: SpotifyId) -> Result<Track, PlayError> {
-        log::debug!("Loading track: {:?}", track);
-        let player = self
-            .get_player()
-            .await
-            .map_err(|e| PlayError::SessionError { e })?;
-        player.load(track, false, 0);
-
-        let track = Track::get(&self.session, &track)
-            .await
-            .map_err(|e| PlayError::TrackMetadataError { e })?;
-        Ok(track)
+    pub async fn get_track(&mut self, track: SpotifyId) -> Result<Track, PlayError> {
+        log::debug!("Getting track data: {:?}", track);
+        Track::get(
+            &self
+                .get_player()
+                .await
+                .map_err(|e| PlayError::SessionError { e })?
+                .session,
+            &track,
+        )
+        .await
+        .map_err(|e| PlayError::TrackMetadataError { e })
     }
 
     pub fn set_volume(&mut self, volume: u16) {

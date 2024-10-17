@@ -20,7 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            player_window::load,
+            player_window::get_track,
             player_window::play,
             player_window::pause,
             player_window::stop,

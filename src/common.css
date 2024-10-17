@@ -1,0 +1,15 @@
+* {
+    padding: 0;
+    margin: 0;
+}
+
+.sprite {
+    background: var(--sprite-url);
+    position: absolute;
+    display: inline-block;
+    image-rendering: pixelated;
+    transform-origin: top left;
+    transform: scale(var(--zoom));
+    left: calc(var(--sprite-x) * var(--zoom));
+    top: calc(var(--sprite-y) * var(--zoom));
+}

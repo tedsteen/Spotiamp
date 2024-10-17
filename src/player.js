@@ -1,31 +1,16 @@
 const { invoke } = window.__TAURI__.core;
-const { message } = window.__TAURI__.dialog;
 const { emit } = window.__TAURI__.event;
+import { handleError, preventAndStopPropagation, spotifyUrlToUri, getTrack, SpotifyTrack, PLAYLIST_CHANNEL } from './common.js';
 
-async function handleError(e) {
-  await message(`${e}`, { title: 'Spotiamp', kind: 'error' });
-}
-const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
-function spotifyUrlToUri(url) {
-  const matches = spotifyUrlRe.exec(url);
-  return `spotify:${matches[1]}:${matches[2]}`;
-}
+PLAYLIST_CHANNEL.onmessage = function (track) { console.log("track received:", track); }
 
 async function get_volume() {
   return await invoke("get_volume");
 }
 
-function preventAndStopPropagation(ev) {
-  ev.preventDefault();
-  ev.stopPropagation();
-}
 window.addEventListener("dragenter", preventAndStopPropagation);
 window.addEventListener("dragover", preventAndStopPropagation);
 window.addEventListener("drop", preventAndStopPropagation);
-
-const zoom = window.innerWidth / 275.0;
-
-document.querySelector(':root').style.setProperty('--zoom', zoom);
 
 const characterLUT = {
   'a': [0, 0],
@@ -99,11 +84,17 @@ const characterLUT = {
   '}': [1, 23]
 }
 class TextTicker {
+  /**
+   * @param {HTMLElement} textEl 
+   */
   constructor(textEl) {
     this.textEl = textEl;
     this.xOffs = 0;
   }
 
+  /**
+   * @param {string} text 
+   */
   setText(text) {
     if (text.length > 31) {
       text = `${text} *** ${text}`;
@@ -126,6 +117,9 @@ class TextTicker {
     this.textEl.innerHTML = html;
   }
 
+  /**
+   * @param {number} xOffs 
+   */
   updateXShift(xOffs) {
     this.textEl.style.setProperty('--x-shift', `${xOffs * 5}px`);
   }
@@ -147,6 +141,9 @@ class TextTicker {
     this.updateXShift(0);
   }
 
+  /**
+   * @param {string} text 
+   */
   setOverride(text) {
     this.textOverride = text;
     if (this.textOverride !== undefined) {
@@ -159,39 +156,35 @@ class TextTicker {
   }
 }
 
-function durationToHHMMSS(ts) {
-  ts = Math.floor(ts / 1000);
-  const hours = Math.floor(ts / 3600);
-  const minutes = Math.floor((ts - (hours * 3600)) / 60);
-  const seconds = ts - (hours * 3600) - (minutes * 60);
-
-  let timeString = hours > 0 ? hours.toString().padStart(1, '0') + ':' : "";
-  timeString += minutes.toString().padStart(1, '0') + ':' +
-    seconds.toString().padStart(2, '0');
-  return timeString;
-}
-
 window.addEventListener("DOMContentLoaded", () => {
   const ticker = new TextTicker(document.getElementById("text"));
-  let loadedUrl;
+  ticker.setText("Winamp 2.91")
+
+  /**
+   * @type {SpotifyTrack | undefined}
+   */
+  let loadedTrack;
+
+  /**
+   * @type {"stopped" | "playing" | "paused"}
+   */
   let state = "stopped";
 
-  async function load(url) {
-    await invoke("load", { uri: spotifyUrlToUri(url) }).catch(handleError).then((trackData) => {
-      loadedUrl = url;
-      const timeString = durationToHHMMSS(trackData.duration);
-      ticker.setText(`12. ${trackData.artist} - ${trackData.name} (${timeString})`);
-    });
+  /**
+   * @param {SpotifyTrack} track
+   */
+  async function loadTrack(track) {
+    ticker.setText(`${track.artist} - ${track.name} (${track.durationAsString})`);
+    loadedTrack = track;
   }
 
   async function play() {
-    if (loadedUrl) {
-      if (state != "paused") {
-        await load(loadedUrl);
-      }
-      await invoke("play").catch(handleError);
-      state = "playing";
+    let trackToStartPlaying = loadedTrack;
+    if (state == "paused") {
+      trackToStartPlaying = undefined; //Don't start playing the loadedTrack, just resume the play
     }
+    await invoke("play", { uri: trackToStartPlaying?.uri }).catch(handleError);
+    state = "playing";
   }
 
   async function pause() {
@@ -240,7 +233,10 @@ window.addEventListener("DOMContentLoaded", () => {
       if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
         item.getAsString((url) => {
           ticker.setText(`Loading...`);
-          load(url);
+          const uri = spotifyUrlToUri(url);
+          getTrack(uri).then((track) => {
+            loadTrack(track);
+          });
         });
       }
     }

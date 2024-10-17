@@ -32,10 +32,10 @@ pub async fn get_volume() -> Result<u16, ()> {
 }
 
 #[tauri::command]
-pub async fn play() -> Result<(), String> {
+pub async fn play(uri: Option<&str>) -> Result<(), String> {
     let spotify_player = &mut player().lock().await;
     spotify_player
-        .play()
+        .play(uri)
         .await
         .map_err(|e| format!("TODO: Failed to play ({e:?})"))?;
 
@@ -67,18 +67,18 @@ pub async fn stop() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn load(uri: &str) -> Result<TrackData, String> {
+pub async fn get_track(uri: &str) -> Result<TrackData, String> {
     let spotify_player = &mut player().lock().await;
 
     let track = spotify_player
-        .load(
+        .get_track(
             SpotifyId::from_uri(uri)
                 .map_err(|e| format!("TODO: Failed to load spotify uri '{uri}' ({e:?})"))?,
         )
         .await
         .map_err(|e| format!("Could not load track ({e:?})"))?;
     let track_data = TrackData::from(track);
-    log::trace!("Loaded track: {track_data:?}");
+    log::trace!("Got track data: {track_data:?}");
     Ok(track_data)
 }
 
