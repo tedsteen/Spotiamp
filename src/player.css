@@ -37,7 +37,6 @@
 }
 
 #volume::-webkit-slider-thumb {
-  image-rendering: pixelated;
   background: url(assets/skins/base-2.91/VOLUME.BMP);
   appearance: none;
   width: 14px;

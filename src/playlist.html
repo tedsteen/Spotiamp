@@ -10,10 +10,14 @@
 </head>
 
 <body>
-    <h1>Playlist</h1>
-    <div id="playlist">
+    <table id="playlist"></table>
 
-    </div>
+    <template id="template-playlist-track-row">
+        <tr draggable="true" class="playlist-track">
+            <td class="playlist-track-name">Loading...</td>
+            <td class="playlist-track-duration"></td>
+        </tr>
+    </template>
 </body>
 
 </html>

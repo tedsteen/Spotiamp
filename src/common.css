@@ -1,13 +1,15 @@
 * {
     padding: 0;
     margin: 0;
+    border: 0;
+    image-rendering: pixelated;
+    cursor: url(assets/skins/base-2.91/MAINMENU.CUR), auto;
 }
 
 .sprite {
     background: var(--sprite-url);
     position: absolute;
     display: inline-block;
-    image-rendering: pixelated;
     transform-origin: top left;
     transform: scale(var(--zoom));
     left: calc(var(--sprite-x) * var(--zoom));

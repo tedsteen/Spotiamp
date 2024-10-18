@@ -80,23 +80,22 @@ impl LoggedInPlayer {
         ))
     }
 
-    async fn login_session(&self) -> Result<Session, SessionError> {
+    async fn login_session(&self) -> Result<(), SessionError> {
         log::debug!("Getting credentials");
-        if let Some(credentials) = self.session.cache().and_then(|cache| cache.credentials()) {
-            log::debug!("Credentials found in cache, trying that...");
-            if self.session.connect(credentials, true).await.is_ok() {
-                log::debug!("Success! Using cached credentials");
-                return Ok(self.session.clone());
+        let credentials = match self.session.cache().and_then(|cache| cache.credentials()) {
+            Some(credentials) => credentials,
+            None => {
+                log::debug!("No credentials in cache, starting OAuth flow...");
+                Self::get_credentials_from_oauth().await?
             }
-        }
-        log::debug!("Not logged in, starting OAuth flow...");
-        let credentials = Self::get_credentials_from_oauth().await?;
+        };
+
         self.session
             .connect(credentials, true)
             .await
             .map_err(|e| SessionError::ConnectError { e })?;
         log::debug!("Success! Using credentials from OAuth-flow and saving them for next time");
-        Ok(self.session.clone())
+        Ok(())
     }
 }
 
@@ -140,18 +139,21 @@ impl SpotifyPlayer {
         if self.player.is_none() {
             self.player = Some(LoggedInPlayer::new(self.cache.clone(), self.volume.clone()).await?);
         }
-        //TODO: Make sure the session is still logged in
-        // Maybe something like this in LoggedInPlayer
-        // fn do_with_player<T, E>(&self, fun: impl FnOnce(&Player) -> Result<T, SessionError) -> Result<T, E> {
-        //     match fun(&self.player) {
-        //         Ok(res) => Ok(res),
-        //         Err(_) => {
-        //         },
-        //     }
-        // }
 
         Ok(self.player.as_mut().expect("a player"))
     }
+
+    //TODO: Make sure the session is still logged in
+    // Maybe something like this?
+    // async fn do_authenticated<T>(&mut self, fun: FnMut(&mut Player) -> Result<T, PlayError>) -> T {
+    //     match fun(get_player()) {
+    //         Ok(res) => res,
+    //         Err(PlayError::SessionError { e: SessionError::AuthenticationError(e) }) => {
+
+    //         }
+    //         Err(_) => todo!(),
+    //     }
+    // }
 
     pub async fn play(&mut self, uri: Option<&str>) -> Result<(), PlayError> {
         log::debug!("Play!");

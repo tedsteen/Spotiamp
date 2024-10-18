@@ -1,8 +1,6 @@
 const { invoke } = window.__TAURI__.core;
 const { emit } = window.__TAURI__.event;
-import { handleError, preventAndStopPropagation, spotifyUrlToUri, getTrack, SpotifyTrack, PLAYLIST_CHANNEL } from './common.js';
-
-PLAYLIST_CHANNEL.onmessage = function (track) { console.log("track received:", track); }
+import { handleError, preventAndStopPropagation, SpotifyTrack, subscribeToPlaylistEvent, dispatchPlaylistEvent } from './common.js';
 
 async function get_volume() {
   return await invoke("get_volume");
@@ -173,9 +171,10 @@ window.addEventListener("DOMContentLoaded", () => {
   /**
    * @param {SpotifyTrack} track
    */
-  async function loadTrack(track) {
+  function loadTrack(track) {
     ticker.setText(`${track.artist} - ${track.name} (${track.durationAsString})`);
     loadedTrack = track;
+    state = "stopped";
   }
 
   async function play() {
@@ -183,6 +182,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (state == "paused") {
       trackToStartPlaying = undefined; //Don't start playing the loadedTrack, just resume the play
     }
+    //console.info("PLAY:", trackToStartPlaying);
     await invoke("play", { uri: trackToStartPlaying?.uri }).catch(handleError);
     state = "playing";
   }
@@ -201,14 +201,15 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  const playBtnEl = document.getElementById("main-btn-play");
-  playBtnEl.addEventListener("click", play);
-
-  const pauseBtnEl = document.getElementById("main-btn-pause");
-  pauseBtnEl.addEventListener("click", pause);
-
-  const stopBtnEl = document.getElementById("main-btn-stop");
-  stopBtnEl.addEventListener("click", stop);
+  document.getElementById("main-btn-previous").addEventListener("click", () => {
+    dispatchPlaylistEvent('previous-track');
+  });
+  document.getElementById("main-btn-play").addEventListener("click", play);
+  document.getElementById("main-btn-pause").addEventListener("click", pause);
+  document.getElementById("main-btn-stop").addEventListener("click", stop);
+  document.getElementById("main-btn-next").addEventListener("click", () => {
+    dispatchPlaylistEvent('next-track');
+  });
 
   const volume = document.getElementById("volume");
   get_volume().then(function (volumePct) {
@@ -228,17 +229,23 @@ window.addEventListener("DOMContentLoaded", () => {
     ticker.setOverride(undefined);
   });
 
-  document.addEventListener("drop", (ev) => {
-    for (const item of ev.dataTransfer.items) {
-      if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
-        item.getAsString((url) => {
-          ticker.setText(`Loading...`);
-          const uri = spotifyUrlToUri(url);
-          getTrack(uri).then((track) => {
-            loadTrack(track);
-          });
-        });
-      }
-    }
+  // document.addEventListener("drop", (ev) => {
+  //   for (const item of ev.dataTransfer.items) {
+  //     if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
+  //       item.getAsString((url) => {
+  //         ticker.setText(`Loading...`);
+  //         const uri = spotifyUrlToUri(url);
+  //         getTrack(uri).then((track) => {
+  //           loadTrack(track);
+  //         });
+  //       });
+  //     }
+  //   }
+  // });
+  subscribeToPlaylistEvent('load-track', (track) => {
+    loadTrack(track);
+    play();
   });
+
+
 });

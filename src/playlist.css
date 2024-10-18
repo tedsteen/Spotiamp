@@ -1,1 +1,30 @@
 @import url(common.css);
+
+body {
+  background-color: black;
+}
+
+#playlist {
+  color: rgb(0, 255, 0);
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Arial, Arial, sans-serif";
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  line-height: 13px;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.playlist-track.selected {
+  background-color: blue;
+}
+
+.playlist-track.loaded {
+  color: white;
+}
+
+.playlist-track-duration {
+  text-align: right;
+}

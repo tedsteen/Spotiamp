@@ -22,21 +22,6 @@ export function preventAndStopPropagation(ev) {
 const zoom = window.innerWidth / 275.0;
 document.querySelector(':root').style.setProperty('--zoom', zoom);
 
-export function htmlToNode(html) {
-    const template = document.createElement('template');
-    template.innerHTML = html;
-    const nNodes = template.content.childNodes.length;
-    if (nNodes !== 1) {
-        throw new Error(
-            `html parameter must represent a single node; got ${nNodes}. ` +
-            'Note that leading or trailing spaces around an element in your ' +
-            'HTML, like " <img/> ", get parsed as text nodes neighbouring ' +
-            'the element; call .trim() on your input to avoid this.'
-        );
-    }
-    return template.content.firstChild;
-}
-
 const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
 
 /**
@@ -89,4 +74,48 @@ export async function getTrack(uri) {
     return new SpotifyTrack(trackData.artist, trackData.name, trackData.duration, uri);
 }
 
-export const PLAYLIST_CHANNEL = new BroadcastChannel('playlist_channel');
+const PLAYLIST_CHANNEL = new BroadcastChannel('playlist_channel');
+/**
+ * @typedef {{'load-track': SpotifyTrack, 'next-track': undefined, 'previous-track': nothing}} PlaylistEventTypes
+ */
+
+class PlaylistEvent {
+    /**
+     * @template {keyof PlaylistEventTypes} K
+     * @param {K} type
+     * @param {PlaylistEventTypes[K]} payload
+     */
+    constructor(type, payload) {
+        this.type = type;
+        this.payload = payload;
+    }
+}
+
+/**
+ * @template {keyof PlaylistEventTypes} K
+ * @param {K} type
+ * @param {PlaylistEventTypes[K]} payload
+ */
+export function dispatchPlaylistEvent(type, payload) {
+    PLAYLIST_CHANNEL.postMessage(new PlaylistEvent(type, payload));
+}
+
+/**
+ * @template {keyof PlaylistEventTypes} T
+ * @callback PlaylistEventCallback
+ * @param {PlaylistEventTypes[T]} event
+ * @returns {void}
+ */
+
+/**
+ * @template {keyof PlaylistEventTypes} K
+ * @param {K} subscribedType
+ * @param {PlaylistEventCallback<K>} callback
+ */
+export function subscribeToPlaylistEvent(subscribedType, callback) {
+    PLAYLIST_CHANNEL.addEventListener('message', ({ data: { type, payload } }) => {
+        if (type == subscribedType) {
+            callback(payload);
+        }
+    })
+};
