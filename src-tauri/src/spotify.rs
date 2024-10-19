@@ -182,16 +182,10 @@ pub enum SessionError {
 
     #[error("Could not get token ({e:?}")]
     TokenExchangeFailure { e: OAuthError },
-
-    #[error("Failed to login")]
-    LoginFailed,
 }
 
 #[derive(Debug, Error)]
 pub enum PlayError {
-    #[error("Session failed ({e:?})")]
-    SessionError { e: SessionError },
-
     #[error("Failed to fetch metadata ({e:?})")]
     TrackMetadataError { e: Error },
 }
