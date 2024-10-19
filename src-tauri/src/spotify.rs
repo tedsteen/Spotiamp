@@ -24,6 +24,7 @@ pub struct SpotifyPlayer {
     player: Arc<Player>,
     session: Session,
     volume: Arc<Mutex<u16>>,
+    cache: Cache,
 }
 
 const DEFAULT_VOLUME: u16 = 80;
@@ -72,11 +73,12 @@ impl SpotifyPlayer {
             player,
             session,
             volume,
+            cache,
         }
     }
 
     pub async fn login(&self, app: &AppHandle) -> Result<(), SessionError> {
-        let credentials = match self.session.cache().and_then(|cache| cache.credentials()) {
+        let credentials = match self.cache.credentials() {
             Some(credentials) => credentials,
             None => {
                 log::debug!("No credentials in cache, starting OAuth flow...");
@@ -159,16 +161,11 @@ impl SpotifyPlayer {
 
     pub fn set_volume(&mut self, volume: u16) {
         *self.volume.lock().unwrap() = volume;
-        if let Some(cache) = self.session.cache() {
-            cache.save_volume(volume);
-        }
+        self.cache.save_volume(volume);
     }
 
     pub fn get_volume(&self) -> u16 {
-        self.session
-            .cache()
-            .and_then(|cache| cache.volume())
-            .unwrap_or(DEFAULT_VOLUME)
+        *self.volume.lock().unwrap()
     }
 }
 
