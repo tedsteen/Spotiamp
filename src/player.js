@@ -244,7 +244,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // });
   subscribeToPlaylistEvent('load-track', (track) => {
     loadTrack(track);
-    play();
+    play().catch(handleError);
   });
 
 

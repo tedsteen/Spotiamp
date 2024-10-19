@@ -1,7 +1,7 @@
-use tauri::{App, LogicalPosition, WebviewWindow};
+use tauri::{AppHandle, LogicalPosition, WebviewWindow};
 
 pub fn build_window(
-    app: &App,
+    app: &AppHandle,
     zoom: f64,
     position: LogicalPosition<f64>,
 ) -> Result<WebviewWindow, tauri::Error> {

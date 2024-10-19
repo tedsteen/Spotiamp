@@ -1,6 +1,6 @@
 use librespot::{core::SpotifyId, metadata::Track};
 use serde::Serialize;
-use tauri::{App, WebviewWindow};
+use tauri::{AppHandle, WebviewWindow};
 
 use crate::player;
 
@@ -73,7 +73,7 @@ pub async fn get_track(uri: &str) -> Result<TrackData, String> {
     let track = spotify_player
         .get_track(
             SpotifyId::from_uri(uri)
-                .map_err(|e| format!("TODO: Failed to load spotify uri '{uri}' ({e:?})"))?,
+                .map_err(|e| format!("TODO: Failed to get track by uri '{uri}' ({e:?})"))?,
         )
         .await
         .map_err(|e| format!("Could not load track ({e:?})"))?;
@@ -82,15 +82,19 @@ pub async fn get_track(uri: &str) -> Result<TrackData, String> {
     Ok(track_data)
 }
 
-pub fn build_window(app: &App, zoom: f64) -> Result<WebviewWindow, tauri::Error> {
-    tauri::WebviewWindowBuilder::new(app, "player", tauri::WebviewUrl::App("player.html".into()))
-        .title("Player")
-        .inner_size(275.0 * zoom, 116.0 * zoom)
-        .decorations(false)
-        .closable(false)
-        .maximizable(false)
-        .minimizable(false)
-        .resizable(false)
-        .disable_drag_drop_handler()
-        .build()
+pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, tauri::Error> {
+    tauri::WebviewWindowBuilder::new(
+        app_handle,
+        "player",
+        tauri::WebviewUrl::App("player.html".into()),
+    )
+    .title("Player")
+    .inner_size(275.0 * zoom, 116.0 * zoom)
+    .decorations(false)
+    .closable(false)
+    .maximizable(false)
+    .minimizable(false)
+    .resizable(false)
+    .disable_drag_drop_handler()
+    .build()
 }

@@ -40,18 +40,7 @@ pub enum OAuthError {
 pub struct OAuthFlow {
     auth_url: Url,
     socket_addr: SocketAddr,
-    #[allow(clippy::type_complexity)]
-    client: oauth2::Client<
-        oauth2::StandardErrorResponse<oauth2::basic::BasicErrorResponseType>,
-        oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>,
-        oauth2::basic::BasicTokenType,
-        oauth2::StandardTokenIntrospectionResponse<
-            oauth2::EmptyExtraTokenFields,
-            oauth2::basic::BasicTokenType,
-        >,
-        oauth2::StandardRevocableToken,
-        oauth2::StandardErrorResponse<oauth2::RevocationErrorResponseType>,
-    >,
+    pub client: BasicClient,
     pkce_verifier: oauth2::PkceCodeVerifier,
 }
 
@@ -129,7 +118,7 @@ impl OAuthFlow {
                      State(mut tx): State<Option<Sender<AuthorizationCode>>>| async move {
                         if let Some(tx) = tx.take() {
                             let _ = tx.send(AuthorizationCode::new(params.code));
-                            Html("<script>window.open('', '_self')?.close();</script>")
+                            Html("<script>window.__TAURI__.window.getCurrentWindow().close();</script>")
                                 .into_response()
                         } else {
                             (

@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "login",
+  "description": "Capability for the login",
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:*"
+    ]
+  },
+  "windows": [
+    "login"
+  ],
+  "permissions": [
+    "core:window:allow-close"
+  ]
+}

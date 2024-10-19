@@ -5006,7 +5006,6 @@ dependencies = [
  "librespot",
  "log",
  "oauth2",
- "open",
  "serde",
  "serde_json",
  "tauri",
