@@ -96,5 +96,6 @@ pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, 
     .minimizable(false)
     .resizable(false)
     .disable_drag_drop_handler()
+    .accept_first_mouse(true)
     .build()
 }

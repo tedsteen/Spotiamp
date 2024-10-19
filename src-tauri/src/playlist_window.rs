@@ -19,5 +19,6 @@ pub fn build_window(
     .resizable(false)
     .position(position.x, position.y)
     .disable_drag_drop_handler()
+    .accept_first_mouse(true)
     .build()
 }
