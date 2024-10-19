@@ -46,11 +46,11 @@ impl SpotifyPlayer {
         let backend = audio_backend::find(None).unwrap();
         let player_config = PlayerConfig::default();
 
-        struct SpotiyampVolumeGetter {
+        struct SpotiampVolumeGetter {
             volume: Arc<Mutex<u16>>,
         }
 
-        impl VolumeGetter for SpotiyampVolumeGetter {
+        impl VolumeGetter for SpotiampVolumeGetter {
             fn attenuation_factor(&self) -> f64 {
                 *self.volume.lock().unwrap() as f64 / 100.0
             }
@@ -60,7 +60,7 @@ impl SpotifyPlayer {
         let player = Player::new(
             player_config,
             session.clone(),
-            Box::new(SpotiyampVolumeGetter {
+            Box::new(SpotiampVolumeGetter {
                 volume: volume.clone(),
             }),
             move || {
