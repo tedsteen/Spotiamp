@@ -5,8 +5,12 @@ window.addEventListener("drop", preventAndStopPropagation);
 /**
  * @typedef {import('./common.js').Uri} Uri
  */
-
 const BLANK_CANVAS = document.createElement('canvas');
+BLANK_CANVAS.style.width = "1px";
+BLANK_CANVAS.style.height = "1px";
+BLANK_CANVAS.style.top = "1px";
+BLANK_CANVAS.style.left = "1px";
+
 document.body?.appendChild(BLANK_CANVAS);
 class PlaylistTrack {
     /**
@@ -51,11 +55,13 @@ class PlaylistTrack {
         });
 
         trackEl.addEventListener("dragover", () => {
-            const children = [...playlist.el.children];
-            if (children.indexOf(trackEl) > children.indexOf(PlaylistTrack.row)) {
-                trackEl.after(PlaylistTrack.row);
-            } else {
-                trackEl.before(PlaylistTrack.row);
+            if (trackEl !== PlaylistTrack.row) {
+                const children = [...playlist.el.children];
+                if (children.indexOf(trackEl) > children.indexOf(PlaylistTrack.row)) {
+                    trackEl.after(PlaylistTrack.row);
+                } else {
+                    trackEl.before(PlaylistTrack.row);
+                }
             }
         });
 
@@ -119,7 +125,7 @@ class Playlist {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-    const playlist = new Playlist(document.getElementById("playlist"));
+    const playlist = new Playlist(document.getElementById("playlist-tracks"));
     playlist.addTrack(spotifyUrlToUri("https://open.spotify.com/track/6zTO0Y58ZBd1ZMjH0EIX1X"));
     playlist.addTrack(spotifyUrlToUri("https://open.spotify.com/track/72oaFIAqlK7N7a8cyHZZ3i"));
     playlist.addTrack(spotifyUrlToUri("https://open.spotify.com/track/6qnoOnDK3embwtU89Fz5XN"));

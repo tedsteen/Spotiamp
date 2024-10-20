@@ -4,21 +4,43 @@ body {
   background-color: black;
 }
 
-#playlist {
+/* ------ TRACKS ------ */
+.tracks-container {
+  --track-row-height: 14.5px;
+  margin-top: calc(20px * var(--zoom));
+  margin-left: calc(10px * var(--zoom));
+  width: calc((195px + var(--playlist-w) * 25px) * var(--zoom));
+  height: calc((var(--playlist-h) - 1) * 2 * var(--track-row-height) * var(--zoom));
+  overflow: hidden;
+}
+
+#playlist-tracks {
   color: rgb(0, 255, 0);
-  width: 100%;
   border-collapse: collapse;
-  font-family: "Arial, Arial, sans-serif";
-  font-size: 9px;
-  letter-spacing: 0.5px;
-  line-height: 13px;
+  font-family: Arial, Arial, sans-serif;
+  font-size: calc(9px * var(--zoom));
+  letter-spacing: calc(0.5px * var(--zoom));
+  line-height: calc(13px * var(--zoom));
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  width: 100%;
+}
+
+.playlist-track {
+  height: calc(var(--track-row-height) * var(--zoom));
+}
+
+.playlist-track-name {
+  padding-left: calc(5px * var(--zoom));
+}
+
+.playlist-track-duration {
+  padding-right: calc(5px * var(--zoom));
 }
 
 .playlist-track.selected {
-  background-color: blue;
+  background-color: rgb(0, 0, 198);
 }
 
 .playlist-track.loaded {
@@ -28,3 +50,98 @@ body {
 .playlist-track-duration {
   text-align: right;
 }
+
+/* ------ /TRACKS ------ */
+
+/* ------ PLAYLIST ------ */
+.playlist-sprite {
+  --x: 0;
+  --y: 0;
+  --sprite-x: calc(var(--x) * 25px);
+  --sprite-y: calc(var(--y) * 20px);
+}
+
+.playlist-tl-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 25px;
+  height: 20px;
+}
+
+.playlist-l-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 10px;
+  height: 29px;
+  --sprite-y: calc(var(--y) * 29px - 9px);
+  background-position: 0px -42px;
+}
+
+.playlist-bl-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 125px;
+  height: 38px;
+  --y: var(--playlist-h);
+  --sprite-y: calc(var(--y) * 29px - 9px);
+  background-position: 0px -72px;
+}
+
+.playlist-b-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 25px;
+  height: 38px;
+  --y: var(--playlist-h);
+  --sprite-x: calc(var(--x) * 25px + 100px);
+  --sprite-y: calc(var(--y) * 29px - 9px);
+  background-position: -179px 0px;
+}
+
+.playlist-br-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 150px;
+  height: 38px;
+  --x: var(--playlist-w);
+  --y: var(--playlist-h);
+  --sprite-x: calc(var(--x) * 25px + 75px);
+  --sprite-y: calc(var(--y) * 29px - 9px);
+  background-position: 154px -72px;
+}
+
+.playlist-r-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 19px;
+  height: 29px;
+  --x: var(--playlist-w);
+  --sprite-x: calc(var(--x) * 25px + 206px);
+  --sprite-y: calc(var(--y) * 29px - 9px);
+  background-position: -32px -42px;
+}
+
+.playlist-tr-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 25px;
+  height: 20px;
+  --x: var(--playlist-w);
+  --y: 0;
+  --sprite-x: calc(var(--x) * 25px + 200px);
+  background-position: -153px 0px;
+}
+
+.playlist-t-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 25px;
+  height: 20px;
+  --y: 0;
+  --sprite-x: calc(var(--x) * 25px);
+  background-position: -127px 0px;
+}
+
+.playlist-title-sprite {
+  --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+  width: 100px;
+  height: 20px;
+  --y: 0;
+  --sprite-x: calc(var(--x) * 25px);
+  background-position: -26px 0px;
+}
+
+
+/* ------ /PLAYLIST ------ */

@@ -42,7 +42,6 @@ impl SpotifyPlayer {
                 .ok()
             })
             .expect("a cache to be created");
-        log::debug!("Getting credentials");
 
         let backend = audio_backend::find(None).unwrap();
         let player_config = PlayerConfig::default();
@@ -78,6 +77,7 @@ impl SpotifyPlayer {
     }
 
     pub async fn login(&self, app: &AppHandle) -> Result<(), SessionError> {
+        log::debug!("Getting credentials");
         let credentials = match self.cache.credentials() {
             Some(credentials) => credentials,
             None => {
