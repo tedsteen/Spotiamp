@@ -2,16 +2,15 @@
   import { invoke } from "@tauri-apps/api/core";
   import { emit } from "@tauri-apps/api/event";
 
-  import {
-    handleError,
-    SpotifyTrack,
-    subscribeToPlaylistEvent,
-    dispatchPlaylistEvent,
-    handleDrop,
-    spotifyUrlToTrack,
-  } from "$lib/common.js";
+  import { handleError, handleDrop, spotifyUrlToTrack } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
+  import {
+    dispatchWindowChannelEvent,
+    subscribeToWindowChannelEvent,
+  } from "$lib/windowChannel";
+  // TODO: only export the type somehow
+  import { SpotifyTrack } from "$lib/spotifyTrack";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data } = $props();
@@ -89,7 +88,7 @@
     }
   }
 
-  subscribeToPlaylistEvent("load-track", (track) => {
+  subscribeToWindowChannelEvent("load-track", (track) => {
     console.info("load-track", track);
     if (playerState != "stopped") {
       loadAndPlay(track);
@@ -98,36 +97,47 @@
     }
   });
 
-  subscribeToPlaylistEvent("play-track", (track) => {
+  subscribeToWindowChannelEvent("play-track", (track) => {
     console.info("play-track", track);
     loadAndPlay(track);
   });
 
   let minutes = $state(0);
   let seconds = $state(0);
-  setInterval(() => {
-    seconds++;
-    if (seconds == 60) {
-      seconds = 0;
-      minutes++;
-    }
-  }, 1000);
 
   /**
    * @type number | undefined
    */
-  let pauseEffect;
+  let playOrPauseInterval;
   $effect(() => {
-    clearInterval(pauseEffect);
-    if (playerState == "paused") {
-      pauseEffect = setInterval(() => {
-        numberDisplayHidden = !numberDisplayHidden;
+    clearInterval(playOrPauseInterval);
+    if (playerState == "paused" || playerState == "playing") {
+      playOrPauseInterval = setInterval(() => {
+        if (playerState == "paused") {
+          numberDisplayHidden = !numberDisplayHidden;
+        } else {
+          seconds++;
+          if (seconds == 60) {
+            seconds = 0;
+            minutes++;
+          }
+        }
       }, 1000);
-    } else if (playerState == "stopped") {
+    }
+
+    if (playerState == "stopped") {
       numberDisplayHidden = true;
+      seconds = minutes = 0;
     } else if (playerState == "playing") {
       numberDisplayHidden = false;
     }
+  });
+
+  // Send a player ready at startup
+  dispatchWindowChannelEvent("player-ready");
+  // And then respond on every ping...
+  subscribeToWindowChannelEvent("ping-player", () => {
+    dispatchWindowChannelEvent("player-ready");
   });
 </script>
 
@@ -171,7 +181,7 @@
     type="button"
     class="sprite control-buttons-sprite"
     style="--button-x: calc(16px + (var(--button-width) * 0)); --button-y: 88px; --button-idx: 0;"
-    onclick={() => dispatchPlaylistEvent("previous-track")}
+    onclick={() => dispatchWindowChannelEvent("previous-track")}
   />
   <input
     type="button"
@@ -198,7 +208,7 @@
     type="button"
     class="sprite control-buttons-sprite"
     style="--button-x: calc(16px + (var(--button-width) * 4)); --button-y: 88px; --button-idx: 4; width: 22px; "
-    onclick={() => dispatchPlaylistEvent("next-track")}
+    onclick={() => dispatchWindowChannelEvent("next-track")}
   />
 
   <!-- <div class="sprite control-buttons-sprite"

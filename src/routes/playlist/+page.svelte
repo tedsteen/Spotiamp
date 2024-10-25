@@ -1,14 +1,17 @@
 <script>
   import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
   import {
-    dispatchPlaylistEvent,
-    SpotifyTrack,
     spotifyUrlToTrack,
     setZoom,
     range,
-    subscribeToPlaylistEvent,
     handleDrop,
   } from "$lib/common.js";
+  import {
+    dispatchWindowChannelEvent,
+    subscribeToWindowChannelEvent,
+  } from "$lib/windowChannel";
+  // TODO: only import the type somehow
+  import { SpotifyTrack } from "$lib/spotifyTrack";
 
   const ZOOM = 1;
   setZoom(ZOOM);
@@ -34,11 +37,11 @@
 
     load() {
       loadedRow = this;
-      dispatchPlaylistEvent("load-track", this.track);
+      dispatchWindowChannelEvent("load-track", this.track);
     }
 
     play() {
-      dispatchPlaylistEvent("play-track", this.track);
+      dispatchWindowChannelEvent("play-track", this.track);
       loadedRow = this;
     }
 
@@ -85,14 +88,14 @@
     });
   });
 
-  subscribeToPlaylistEvent("next-track", () => {
+  subscribeToWindowChannelEvent("next-track", () => {
     const currRowIndex = rows.indexOf(loadedRow);
     const nextRow = rows[currRowIndex + 1];
     console.info("next-track", currRowIndex, nextRow);
     nextRow?.load();
   });
 
-  subscribeToPlaylistEvent("previous-track", () => {
+  subscribeToWindowChannelEvent("previous-track", () => {
     const currRowIndex = rows.indexOf(loadedRow);
     const previousRow = rows[currRowIndex - 1];
     console.info("previous-track", currRowIndex, previousRow);
