@@ -32,7 +32,7 @@
   /**
    * @type {"stopped" | "playing" | "paused"}
    */
-  let playerState = "stopped";
+  let playerState = $state("stopped");
 
   /**
    * @type {SpotifyTrack | undefined}
@@ -107,7 +107,9 @@
 </svelte:head>
 
 <main class="container">
-  <div class="sprite main-sprite" id="main"></div>
+  <div class="sprite main-sprite"></div>
+  <div class="sprite playpause-sprite playpause-{playerState}"></div>
+
   <div
     data-tauri-drag-region
     class="sprite titlebar-sprite"
@@ -189,6 +191,25 @@
 
   /* ------ /MAIN ------ */
 
+  /* ------ PLAYPAUSE ------ */
+  .playpause-sprite {
+    --sprite-url: url(assets/skins/base-2.91/PLAYPAUS.BMP);
+    width: 9px;
+    height: 9px;
+    --sprite-x: 26px;
+    --sprite-y: 28px;
+  }
+
+  .playpause-paused {
+    background-position: -9px 0px;
+  }
+
+  .playpause-stopped {
+    background-position: -18px 0px;
+  }
+
+  /* ------ /PLAYPAUSE ------ */
+
   /* ------ VOLUME ------ */
   .volume-sprite {
     --sprite-url: url(assets/skins/base-2.91/VOLUME.BMP);
@@ -196,7 +217,7 @@
     --sprite-y: 57px;
     width: 65px;
     height: 14px;
-    background-position: 0px -0px;
+    background-position: 0px 0px;
   }
 
   #volume {
