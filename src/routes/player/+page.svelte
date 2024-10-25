@@ -120,15 +120,20 @@
 <main class="container">
   <div class="sprite main-sprite"></div>
   <div class="sprite playpause-sprite playpause-{playerState}"></div>
-  <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
-  <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
 
   <div
     data-tauri-drag-region
     class="sprite titlebar-sprite"
     id="titlebar"
   ></div>
-  <TextTicker text={tickerText} textOverride={tickerOverrideText} />
+  <TextTicker
+    text={tickerText}
+    textOverride={tickerOverrideText}
+    x="111"
+    y="27"
+  />
+  <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
+  <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
 
   <input
     type="range"

@@ -4,10 +4,12 @@
      * @typedef {Object} Props
      * @property {string} text
      * @property {string | undefined} textOverride
+     * @property {string} x
+     * @property {string} y
      */
 
     /** @type {Props} */
-    let { text = $bindable(), textOverride = $bindable() } = $props();
+    let { text = $bindable(), textOverride = $bindable(), x, y } = $props();
 
     /**
      * @type {Object<String, [number, number]>}
@@ -127,7 +129,7 @@
     onDestroy(() => clearInterval(ticker));
 </script>
 
-<div class="text-container" style="--text-x: 111px; --text-y: 27px;">
+<div class="text-container" style:--x="{x}px" style:--y="{y}px">
     <div
         class="text-shift-container"
         style="--x-shift: {textOverride ? 0 : -xShift}"
@@ -147,8 +149,8 @@
         overflow: hidden;
         width: calc(31 * 5px * var(--zoom));
         height: calc(6px * var(--zoom));
-        left: calc(var(--text-x) * var(--zoom));
-        top: calc(var(--text-y) * var(--zoom));
+        left: calc(var(--x) * var(--zoom));
+        top: calc(var(--y) * var(--zoom));
     }
 
     .text-shift-container {
