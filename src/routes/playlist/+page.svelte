@@ -246,6 +246,7 @@
   }
 
   .draggable-corner {
+    cursor: url(assets/skins/base-2.91/TITLEBAR.CUR), default;
     --width: 15px;
     --height: 15px;
     width: calc(var(--width) * var(--zoom));
@@ -318,9 +319,40 @@
   }
 
   .playlist-tl-sprite {
+    cursor: url(assets/skins/base-2.91/TITLEBAR.CUR), default;
     --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
     width: 25px;
     height: 20px;
+  }
+
+  .playlist-t-sprite {
+    cursor: url(assets/skins/base-2.91/TITLEBAR.CUR), default;
+    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+    width: 25px;
+    height: 20px;
+    --y: 0;
+    --sprite-x: calc(var(--x) * 25px);
+    background-position: -127px 0px;
+  }
+
+  .playlist-title-sprite {
+    cursor: url(assets/skins/base-2.91/TITLEBAR.CUR), default;
+    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+    width: 100px;
+    height: 20px;
+    --y: 0;
+    --sprite-x: calc(var(--x) * 25px);
+    background-position: -26px 0px;
+  }
+
+  .playlist-tr-sprite {
+    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+    width: 25px;
+    height: 20px;
+    --x: var(--playlist-w);
+    --y: 0;
+    --sprite-x: calc((var(--x) - 1) * 25px);
+    background-position: -153px 0px;
   }
 
   .playlist-l-sprite {
@@ -329,6 +361,16 @@
     height: 29px;
     --sprite-y: calc(var(--y) * 29px - 9px);
     background-position: 0px -42px;
+  }
+
+  .playlist-r-sprite {
+    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
+    width: 19px;
+    height: 29px;
+    --x: var(--playlist-w);
+    --sprite-x: calc((var(--x) - 1) * 25px + 6px);
+    --sprite-y: calc(var(--y) * 29px - 9px);
+    background-position: -32px -42px;
   }
 
   .playlist-bl-sprite {
@@ -360,44 +402,5 @@
     --sprite-y: calc(var(--y) * 29px - 9px);
     background-position: 154px -72px;
   }
-
-  .playlist-r-sprite {
-    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
-    width: 19px;
-    height: 29px;
-    --x: var(--playlist-w);
-    --sprite-x: calc((var(--x) - 1) * 25px + 6px);
-    --sprite-y: calc(var(--y) * 29px - 9px);
-    background-position: -32px -42px;
-  }
-
-  .playlist-tr-sprite {
-    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
-    width: 25px;
-    height: 20px;
-    --x: var(--playlist-w);
-    --y: 0;
-    --sprite-x: calc((var(--x) - 1) * 25px);
-    background-position: -153px 0px;
-  }
-
-  .playlist-t-sprite {
-    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
-    width: 25px;
-    height: 20px;
-    --y: 0;
-    --sprite-x: calc(var(--x) * 25px);
-    background-position: -127px 0px;
-  }
-
-  .playlist-title-sprite {
-    --sprite-url: url(assets/skins/base-2.91/PLEDIT.BMP);
-    width: 100px;
-    height: 20px;
-    --y: 0;
-    --sprite-x: calc(var(--x) * 25px);
-    background-position: -26px 0px;
-  }
-
   /* ------ /PLAYLIST ------ */
 </style>
