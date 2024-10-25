@@ -1,5 +1,25 @@
-const { message } = window.__TAURI__.dialog;
-const { invoke } = window.__TAURI__.core;
+import { invoke } from '@tauri-apps/api/core';
+import { message } from '@tauri-apps/plugin-dialog';
+
+export const ORIGINAL_ZOOM = window.innerWidth / 275.0;
+
+/**
+ * @param {number} zoom 
+ */
+export function setZoom(zoom) {
+    document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
+}
+
+/**
+ * 
+ * @param {number} start 
+ * @param {number} end 
+ */
+export function* range(start, end) {
+    for (let i = start; i <= end; i++) {
+        yield i;
+    }
+}
 /**
  * @typedef {(string)} Uri
  */
@@ -14,13 +34,39 @@ export async function handleError(e) {
 /**
  * @param {WindowEventMap[keyof WindowEventMap]} ev 
  */
-export function preventAndStopPropagation(ev) {
+function preventAndStopPropagation(ev) {
     ev.preventDefault();
     ev.stopPropagation();
 }
 
-const zoom = window.innerWidth / 275.0;
-document.querySelector(':root').style.setProperty('--zoom', zoom);
+/**
+ * Callback for getting an URI
+ *
+ * @callback urlCallback
+ * @param {string} url
+ */
+
+/**
+ * @param {urlCallback} urlCallback 
+ */
+export function handleDrop(urlCallback) {
+    window.addEventListener("dragenter", preventAndStopPropagation);
+    window.addEventListener("dragover", preventAndStopPropagation);
+    window.addEventListener("drop", preventAndStopPropagation);
+
+    document.addEventListener("drop", (ev) => {
+
+        if (ev.dataTransfer) {
+            for (const item of ev.dataTransfer.items) {
+                if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
+                    item.getAsString((url) => {
+                        urlCallback(url);
+                    });
+                }
+            }
+        }
+    });
+}
 
 const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
 
@@ -30,7 +76,10 @@ const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
  */
 export function spotifyUrlToUri(url) {
     const matches = spotifyUrlRe.exec(url);
-    return `spotify:${matches[1]}:${matches[2]}`;
+    if (matches) {
+        return `spotify:${matches[1]}:${matches[2]}`;
+    }
+    throw `${url} does not match a spotify URL`;
 }
 
 /**
@@ -55,7 +104,6 @@ export class SpotifyTrack {
     * @param {string} name
     * @param {number} durationInMs
     * @param {Uri} uri
-    * @returns {Promise<SpotifyTrack>}
     */
     constructor(artist, name, durationInMs, uri) {
         this.name = name;
@@ -69,21 +117,32 @@ export class SpotifyTrack {
  * @param {Uri} uri
  * @returns {Promise<SpotifyTrack>}
  */
-export async function getTrack(uri) {
+async function getTrack(uri) {
     const trackData = await invoke("get_track", { uri });
     return new SpotifyTrack(trackData.artist, trackData.name, trackData.duration, uri);
 }
 
+/**
+ * @param {string} url 
+ * @returns 
+ */
+export async function spotifyUrlToTrack(url) {
+    return await getTrack(spotifyUrlToUri(url))
+}
+
+
 const PLAYLIST_CHANNEL = new BroadcastChannel('playlist_channel');
 /**
- * @typedef {{'load-track': SpotifyTrack, 'next-track': undefined, 'previous-track': nothing}} PlaylistEventTypes
+ * @typedef {{'load-track': SpotifyTrack, 'play-track': SpotifyTrack, 'next-track': undefined, 'previous-track': undefined}} PlaylistEventTypes
  */
 
+/**
+ * @template {keyof PlaylistEventTypes} K
+ */
 class PlaylistEvent {
     /**
-     * @template {keyof PlaylistEventTypes} K
      * @param {K} type
-     * @param {PlaylistEventTypes[K]} payload
+     * @param {PlaylistEventTypes[K]} [payload]
      */
     constructor(type, payload) {
         this.type = type;
@@ -94,7 +153,7 @@ class PlaylistEvent {
 /**
  * @template {keyof PlaylistEventTypes} K
  * @param {K} type
- * @param {PlaylistEventTypes[K]} payload
+ * @param {PlaylistEventTypes[K]} [payload]
  */
 export function dispatchPlaylistEvent(type, payload) {
     PLAYLIST_CHANNEL.postMessage(new PlaylistEvent(type, payload));

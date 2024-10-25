@@ -154,6 +154,7 @@ impl SpotifyPlayer {
 
     pub async fn get_track(&mut self, track: SpotifyId) -> Result<Track, PlayError> {
         log::debug!("Getting track data: {:?}", track);
+        //TODO: Check why we get `TrackMetadataError { e: Error { kind: Internal, error: ErrorMessage("channel closed") } }` here after leaving the mac in standby for a while.
         Track::get(&self.session, &track)
             .await
             .map_err(|e| PlayError::TrackMetadataError { e })

@@ -86,7 +86,7 @@ pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, 
     tauri::WebviewWindowBuilder::new(
         app_handle,
         "player",
-        tauri::WebviewUrl::App("player.html".into()),
+        tauri::WebviewUrl::App("player".into()),
     )
     .title("Player")
     .inner_size(275.0 * zoom, 116.0 * zoom)
