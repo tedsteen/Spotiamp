@@ -32,4 +32,8 @@
         left: calc(var(--sprite-x) * var(--zoom));
         top: calc(var(--sprite-y) * var(--zoom));
     }
+
+    :global(.hidden) {
+        display: none;
+    }
 </style>

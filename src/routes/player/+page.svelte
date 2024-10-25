@@ -29,6 +29,7 @@
   let tickerOverrideText = $derived(
     tickerOverrideEnabled ? `VOLUME: ${volume}%` : undefined,
   );
+  let numberDisplayHidden = $state(true);
 
   /**
    * @type {"stopped" | "playing" | "paused"}
@@ -111,6 +112,23 @@
       minutes++;
     }
   }, 1000);
+
+  /**
+   * @type number | undefined
+   */
+  let pauseEffect;
+  $effect(() => {
+    clearInterval(pauseEffect);
+    if (playerState == "paused") {
+      pauseEffect = setInterval(() => {
+        numberDisplayHidden = !numberDisplayHidden;
+      }, 1000);
+    } else if (playerState == "stopped") {
+      numberDisplayHidden = true;
+    } else if (playerState == "playing") {
+      numberDisplayHidden = false;
+    }
+  });
 </script>
 
 <svelte:head>
@@ -132,8 +150,10 @@
     x="111"
     y="27"
   />
-  <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
-  <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
+  <div class:hidden={numberDisplayHidden}>
+    <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
+    <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
+  </div>
 
   <input
     type="range"
