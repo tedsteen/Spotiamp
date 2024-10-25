@@ -11,6 +11,7 @@
     spotifyUrlToTrack,
   } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
+  import NumberDisplay from "../../NumberDisplay.svelte";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data } = $props();
@@ -100,6 +101,16 @@
     console.info("play-track", track);
     loadAndPlay(track);
   });
+
+  let minutes = $state(0);
+  let seconds = $state(0);
+  setInterval(() => {
+    seconds++;
+    if (seconds == 60) {
+      seconds = 0;
+      minutes++;
+    }
+  }, 1000);
 </script>
 
 <svelte:head>
@@ -109,6 +120,8 @@
 <main class="container">
   <div class="sprite main-sprite"></div>
   <div class="sprite playpause-sprite playpause-{playerState}"></div>
+  <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
+  <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
 
   <div
     data-tauri-drag-region
