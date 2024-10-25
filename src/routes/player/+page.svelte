@@ -89,7 +89,11 @@
 
   subscribeToPlaylistEvent("load-track", (track) => {
     console.info("load-track", track);
-    loadTrack(track);
+    if (playerState != "stopped") {
+      loadAndPlay(track);
+    } else {
+      loadTrack(track);
+    }
   });
 
   subscribeToPlaylistEvent("play-track", (track) => {

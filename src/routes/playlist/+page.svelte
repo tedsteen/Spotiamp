@@ -22,6 +22,11 @@
       this.track = track;
     }
 
+    load() {
+      loadedRow = this;
+      dispatchPlaylistEvent("load-track", this.track);
+    }
+
     play() {
       dispatchPlaylistEvent("play-track", this.track);
       loadedRow = this;
@@ -70,8 +75,7 @@
     const row = new PlaylistRow(track);
     rows.push(row);
     if (!loadedRow) {
-      loadedRow = row;
-      dispatchPlaylistEvent("load-track", row.track);
+      row.load();
     }
   }
 
@@ -85,14 +89,14 @@
     const currRowIndex = rows.indexOf(loadedRow);
     const nextRow = rows[currRowIndex + 1];
     console.info("next-track", currRowIndex, nextRow);
-    nextRow?.play();
+    nextRow?.load();
   });
 
   subscribeToPlaylistEvent("previous-track", () => {
     const currRowIndex = rows.indexOf(loadedRow);
     const previousRow = rows[currRowIndex - 1];
     console.info("previous-track", currRowIndex, previousRow);
-    previousRow?.play();
+    previousRow?.load();
   });
 
   spotifyUrlToTrack(
