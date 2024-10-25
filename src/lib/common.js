@@ -11,7 +11,6 @@ export function setZoom(zoom) {
 }
 
 /**
- * 
  * @param {number} start 
  * @param {number} end 
  */
@@ -40,8 +39,6 @@ function preventAndStopPropagation(ev) {
 }
 
 /**
- * Callback for getting an URI
- *
  * @callback urlCallback
  * @param {string} url
  */

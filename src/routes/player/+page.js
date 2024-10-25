@@ -5,8 +5,7 @@ export async function load({ }) {
 	/**
 	 * @type {number}
 	 */
-	const initialVolume = await invoke("get_volume");
 	return {
-		initialVolume
+		initialVolume: await invoke("get_volume")
 	};
 }

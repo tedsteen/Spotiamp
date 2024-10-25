@@ -12,7 +12,17 @@
 
   const ZOOM = 1;
   setZoom(ZOOM);
+
   let loadedRow = $state();
+  /**
+   * @type {PlaylistRow[]}
+   */
+  let rows = $state([]);
+
+  /**
+   * @type {PlaylistRow[]}
+   */
+  let selectedRows = $state([]);
 
   class PlaylistRow {
     /**
@@ -40,16 +50,6 @@
       return selectedRows.indexOf(this) != -1;
     }
   }
-
-  /**
-   * @type {PlaylistRow[]}
-   */
-  let rows = $state([]);
-
-  /**
-   * @type {PlaylistRow[]}
-   */
-  let selectedRows = $state([]);
 
   document.addEventListener("keydown", (e) => {
     const selectedRow = selectedRows[0];
