@@ -8,7 +8,9 @@ mod oauth;
 mod player_window;
 mod playlist_window;
 mod settings;
+mod sink;
 mod spotify;
+mod visualizer;
 
 pub fn player() -> &'static Mutex<SpotifyPlayer> {
     static MEM: OnceLock<Mutex<SpotifyPlayer>> = OnceLock::new();
@@ -81,7 +83,8 @@ pub fn run() {
             player_window::play,
             player_window::pause,
             player_window::stop,
-            player_window::get_volume
+            player_window::get_volume,
+            player_window::take_latest_spectrum,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

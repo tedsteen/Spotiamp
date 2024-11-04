@@ -103,15 +103,41 @@
   });
 
   spotifyUrlToTrack(
+    "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
+  ).then((track) => {
+    addTrack(track);
+  });
+
+  spotifyUrlToTrack(
+    "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
+  ).then((track) => {
+    addTrack(track);
+  });
+
+  spotifyUrlToTrack(
+    "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
+  ).then((track) => {
+    addTrack(track);
+  });
+
+  spotifyUrlToTrack(
+    "https://open.spotify.com/track/2iP0WoxusUtDpnNEgewVD8",
+  ).then((track) => {
+    addTrack(track);
+  });
+
+  spotifyUrlToTrack(
     "https://open.spotify.com/track/6zTO0Y58ZBd1ZMjH0EIX1X",
   ).then((track) => {
     addTrack(track);
   });
+
   spotifyUrlToTrack(
     "https://open.spotify.com/track/72oaFIAqlK7N7a8cyHZZ3i",
   ).then((track) => {
     addTrack(track);
   });
+
   spotifyUrlToTrack(
     "https://open.spotify.com/track/6qnoOnDK3embwtU89Fz5XN",
   ).then((track) => {

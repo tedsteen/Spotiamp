@@ -32,6 +32,12 @@ pub async fn get_volume() -> Result<u16, ()> {
 }
 
 #[tauri::command]
+pub async fn take_latest_spectrum() -> Result<Vec<(f32, f32)>, ()> {
+    let spotify_player = &mut player().lock().await;
+    Ok(spotify_player.take_latest_spectrum())
+}
+
+#[tauri::command]
 pub async fn play(uri: Option<&str>) -> Result<(), String> {
     let spotify_player = &mut player().lock().await;
     spotify_player

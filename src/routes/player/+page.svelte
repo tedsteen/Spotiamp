@@ -139,6 +139,35 @@
   subscribeToWindowChannelEvent("ping-player", () => {
     dispatchWindowChannelEvent("player-ready");
   });
+
+  let visualizerState = $state([
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ]);
+  let visualizerRunning = false;
+
+  async function startVisualizer() {
+    visualizerRunning = true;
+    while (visualizerRunning) {
+      try {
+        const visualizerData = await invoke("take_latest_spectrum", {});
+        if (visualizerData) {
+          let idx = 0;
+          for (var i of visualizerData) {
+            visualizerState[idx] = Math.min(i[1], 1);
+            idx++;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch visualizer data", e);
+      }
+    }
+  }
+
+  function stopVisualizer() {
+    visualizerRunning = false;
+  }
+
+  startVisualizer();
 </script>
 
 <svelte:head>
@@ -164,7 +193,9 @@
     <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
     <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
   </div>
-
+  {#each visualizerState as s, i}
+    <div class="visualizer-bar" style="--bar-idx: {i}; --height: {s}"></div>
+  {/each}
   <input
     type="range"
     class="sprite volume-sprite"
@@ -176,7 +207,6 @@
     onmousedown={() => (tickerOverrideEnabled = true)}
     onmouseup={() => (tickerOverrideEnabled = false)}
   />
-
   <input
     type="button"
     class="sprite control-buttons-sprite"
@@ -218,6 +248,20 @@
 </main>
 
 <style>
+  /* ------ VISUALIZER ------ */
+  .visualizer-bar {
+    background-color: green;
+    position: absolute;
+    display: inline-block;
+    left: calc((var(--bar-idx) * 4px + 24px) * var(--zoom));
+    width: 6px;
+
+    --max-height: 31px;
+    top: calc(86px - var(--height) * var(--max-height) + 32px);
+    height: calc(var(--max-height) * var(--height));
+  }
+  /* ------ /VISUALIZER ------ */
+
   /* ------ TITLEBAR ------ */
   .titlebar-sprite {
     --sprite-url: url(assets/skins/base-2.91/TITLEBAR.BMP);

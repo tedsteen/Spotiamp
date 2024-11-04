@@ -1,6 +1,13 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
-use crate::oauth::{OAuthError, OAuthFlow};
+use crate::{
+    oauth::{OAuthError, OAuthFlow},
+    sink::SpotiampSink,
+    visualizer::Visualizer,
+};
 use librespot::{
     core::{
         authentication::Credentials, cache::Cache, config::SessionConfig, session::Session,
@@ -8,10 +15,10 @@ use librespot::{
     },
     metadata::{Metadata, Track},
     playback::{
-        audio_backend,
-        config::{AudioFormat, PlayerConfig},
+        config::{AudioFormat, Bitrate, NormalisationMethod, NormalisationType, PlayerConfig},
+        dither::{mk_ditherer, TriangularDitherer},
         mixer::VolumeGetter,
-        player::Player,
+        player::{duration_to_coefficient, Player},
     },
 };
 use oauth2::TokenResponse;
@@ -25,6 +32,8 @@ pub struct SpotifyPlayer {
     session: Session,
     volume: Arc<Mutex<u16>>,
     cache: Cache,
+
+    visualizer: Arc<Mutex<Visualizer>>,
 }
 
 const DEFAULT_VOLUME: u16 = 80;
@@ -43,8 +52,20 @@ impl SpotifyPlayer {
             })
             .expect("a cache to be created");
 
-        let backend = audio_backend::find(None).unwrap();
-        let player_config = PlayerConfig::default();
+        let player_config = PlayerConfig {
+            bitrate: Bitrate::Bitrate320,
+            gapless: true,
+            normalisation: false,
+            normalisation_type: NormalisationType::default(),
+            normalisation_method: NormalisationMethod::Dynamic,
+            normalisation_pregain_db: 0.0,
+            normalisation_threshold_dbfs: -2.0,
+            normalisation_attack_cf: duration_to_coefficient(Duration::from_millis(5)),
+            normalisation_release_cf: duration_to_coefficient(Duration::from_millis(100)),
+            normalisation_knee_db: 5.0,
+            passthrough: false,
+            ditherer: Some(mk_ditherer::<TriangularDitherer>),
+        };
 
         struct SpotiampVolumeGetter {
             volume: Arc<Mutex<u16>>,
@@ -57,22 +78,29 @@ impl SpotifyPlayer {
         }
         let session = Session::new(SessionConfig::default(), Some(cache.clone()));
         let volume = Arc::new(Mutex::new(cache.volume().unwrap_or(DEFAULT_VOLUME)));
+        let visualizer = Arc::new(Mutex::new(Visualizer::new()));
         let player = Player::new(
             player_config,
             session.clone(),
             Box::new(SpotiampVolumeGetter {
                 volume: volume.clone(),
             }),
-            move || {
-                let audio_format = AudioFormat::default();
-                backend(None, audio_format)
+            {
+                let visualizer = visualizer.clone();
+                let volume = volume.clone();
+                move || {
+                    let audio_format = AudioFormat::F32;
+                    Box::new(SpotiampSink::new(None, audio_format, visualizer, volume))
+                }
             },
         );
+
         Self {
             player,
             session,
             volume,
             cache,
+            visualizer,
         }
     }
 
@@ -167,6 +195,10 @@ impl SpotifyPlayer {
 
     pub fn get_volume(&self) -> u16 {
         *self.volume.lock().unwrap()
+    }
+
+    pub fn take_latest_spectrum(&mut self) -> Vec<(f32, f32)> {
+        self.visualizer.lock().unwrap().take_latest_spectrum()
     }
 }
 
