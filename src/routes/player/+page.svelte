@@ -9,8 +9,8 @@
     dispatchWindowChannelEvent,
     subscribeToWindowChannelEvent,
   } from "$lib/windowChannel";
-  // TODO: only export the type somehow
-  import { SpotifyTrack } from "$lib/spotifyTrack";
+  // TODO: only export the SpotifyTrack type somehow
+  import { durationToMMSS, SpotifyTrack } from "$lib/spotifyTrack";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data } = $props();
@@ -39,7 +39,7 @@
   /**
    * @type {SpotifyTrack | undefined}
    */
-  let loadedTrack;
+  let loadedTrack = $state();
 
   /**
    * @param {SpotifyTrack} track
@@ -89,6 +89,20 @@
     }
   }
 
+  /**
+   *
+   * @param {number} positionMs
+   */
+  async function seek(positionMs) {
+    if (loadedTrack) {
+      if (playerState == "playing" || playerState == "paused") {
+        await invoke("seek", {
+          positionMs,
+        }).catch(handleError);
+      }
+    }
+  }
+
   subscribeToWindowChannelEvent("load-track", (track) => {
     console.info("load-track", track);
     if (playerState != "stopped") {
@@ -103,8 +117,7 @@
     loadAndPlay(track);
   });
 
-  let minutes = $state(0);
-  let seconds = $state(0);
+  let currentTime = $derived(durationToMMSS(seekPosition));
 
   // Send a player ready at startup
   dispatchWindowChannelEvent("player-ready");
@@ -215,18 +228,14 @@
         if (playerState == "paused") {
           numberDisplayHidden = !numberDisplayHidden;
         } else {
-          seconds++;
-          if (seconds == 60) {
-            seconds = 0;
-            minutes++;
-          }
+          seekPosition += 1000;
         }
       }, 1000);
     }
 
     if (playerState == "stopped") {
       numberDisplayHidden = true;
-      seconds = minutes = 0;
+      seekPosition = 0;
       visualizerRunning = false;
     } else if (playerState == "playing") {
       numberDisplayHidden = false;
@@ -255,8 +264,16 @@
     y="27"
   />
   <div class:hidden={numberDisplayHidden}>
-    <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
-    <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
+    <NumberDisplay
+      number={currentTime.m.toString().padStart(2, "0")}
+      x="48"
+      y="26"
+    />
+    <NumberDisplay
+      number={currentTime.s.toString().padStart(2, "0")}
+      x="78"
+      y="26"
+    />
   </div>
   {#each visualizerState as bar}
     <div
@@ -287,8 +304,9 @@
     class="sprite seek-position-sprite"
     id="seek-position"
     min="0"
-    max="100"
+    max={loadedTrack?.durationInMs}
     bind:value={seekPosition}
+    onchange={() => seek(seekPosition)}
   />
   <!-- onmousedown={() => (tickerOverrideEnabled = true)}
   onmouseup={() => (tickerOverrideEnabled = false)} -->

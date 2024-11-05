@@ -197,6 +197,10 @@ impl SpotifyPlayer {
         *self.volume.lock().unwrap()
     }
 
+    pub fn seek(&self, position_ms: u32) {
+        self.player.seek(position_ms);
+    }
+
     pub fn take_latest_spectrum(&mut self) -> Vec<(f32, f32)> {
         self.visualizer.lock().unwrap().take_latest_spectrum()
     }

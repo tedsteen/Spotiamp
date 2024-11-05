@@ -85,6 +85,7 @@ pub fn run() {
             player_window::stop,
             player_window::get_volume,
             player_window::take_latest_spectrum,
+            player_window::seek,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

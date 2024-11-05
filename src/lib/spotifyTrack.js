@@ -1,16 +1,33 @@
+export class MMSS {
+    /**
+     * @param {number} m 
+     * @param {number} s 
+     */
+    constructor(m, s) {
+        this.m = m;
+        this.s = s;
+    }
+}
+/**
+ * @param {number} durationInMs
+ * @returns {MMSS}
+ */
+export function durationToMMSS(durationInMs) {
+    durationInMs = Math.floor(durationInMs / 1000);
+    const minutes = Math.floor((durationInMs) / 60);
+    const seconds = durationInMs - (minutes * 60);
+    return new MMSS(minutes, seconds);
+}
+
 /**
  * @param {number} durationInMs
  * @returns {string}
  */
-function durationToHHMMSS(durationInMs) {
-    durationInMs = Math.floor(durationInMs / 1000);
-    const hours = Math.floor(durationInMs / 3600);
-    const minutes = Math.floor((durationInMs - (hours * 3600)) / 60);
-    const seconds = durationInMs - (hours * 3600) - (minutes * 60);
+function durationToString(durationInMs) {
+    const hhmmss = durationToMMSS(durationInMs);
 
-    let timeString = hours > 0 ? hours.toString().padStart(1, '0') + ':' : "";
-    timeString += minutes.toString().padStart(1, '0') + ':' +
-        seconds.toString().padStart(2, '0');
+    let timeString = hhmmss.m.toString().padStart(1, '0') + ':' +
+        hhmmss.s.toString().padStart(2, '0');
     return timeString;
 }
 
@@ -28,7 +45,8 @@ export class SpotifyTrack {
     constructor(artist, name, durationInMs, uri) {
         this.name = name;
         this.artist = artist;
-        this.durationAsString = durationToHHMMSS(durationInMs);
+        this.durationInMs = durationInMs
+        this.durationAsString = durationToString(durationInMs);
         this.uri = uri;
     }
 }

@@ -88,6 +88,15 @@ pub async fn get_track(uri: &str) -> Result<TrackData, String> {
     Ok(track_data)
 }
 
+#[tauri::command]
+pub async fn seek(position_ms: u32) -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+
+    spotify_player.seek(position_ms);
+
+    Ok(())
+}
+
 pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, tauri::Error> {
     tauri::WebviewWindowBuilder::new(
         app_handle,
