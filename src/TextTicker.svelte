@@ -132,12 +132,14 @@
 <div class="text-container" style:--x="{x}px" style:--y="{y}px">
     <div
         class="text-shift-container"
-        style="--x-shift: {textOverride ? 0 : -xShift}"
+        style:--x-shift={textOverride ? 0 : -xShift}
     >
         {#each letters as lut, index}
             <div
                 class="sprite letter-sprite"
-                style="--letter-idx-row: {lut[0]}; --letter-idx-col: {lut[1]}; --letter-col: {index}"
+                style:--letter-idx-row={lut[0]}
+                style:--letter-idx-col={lut[1]}
+                style:--letter-col={index}
             ></div>
         {/each}
     </div>

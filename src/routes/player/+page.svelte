@@ -261,18 +261,20 @@
   {#each visualizerState as bar}
     <div
       class="visualizer-bar"
-      style="--bar-idx: {bar.index}; --height: {bar.current};"
+      style:--bar-idx={bar.index}
+      style:--height={bar.current}
     ></div>
     <div
       class="visualizer-hat"
-      style="--bar-idx: {bar.index}; --height: {bar.fade};"
+      style:--bar-idx={bar.index}
+      style:--height={bar.fade}
       class:hidden={bar.fade < 0.01}
     ></div>
   {/each}
   <input
     type="range"
     class="sprite volume-sprite"
-    style="background-position-y: {volumeYOffs}px"
+    style:background-position-y="{volumeYOffs}px"
     id="volume"
     min="0"
     max="100"
@@ -293,41 +295,58 @@
   <input
     type="button"
     class="sprite control-buttons-sprite"
-    style="--button-x: calc(16px + (var(--button-width) * 0)); --button-y: 88px; --button-idx: 0;"
+    style:--button-x="calc(16px + (var(--button-width) * 0))"
+    style:--button-y="88px"
+    style:--button-idx="0"
     onclick={() => dispatchWindowChannelEvent("previous-track")}
   />
   <input
     type="button"
     class="sprite control-buttons-sprite"
-    style="--button-x: calc(16px + (var(--button-width) * 1)); --button-y: 88px; --button-idx: 1;"
+    style:--button-x="calc(16px + (var(--button-width) * 1))"
+    style:--button-y="88px"
+    style:--button-idx="1"
     onclick={play}
   />
 
   <input
     type="button"
     class="sprite control-buttons-sprite"
-    style="--button-x: calc(16px + (var(--button-width) * 2)); --button-y: 88px; --button-idx: 2;"
+    style:--button-x="calc(16px + (var(--button-width) * 2))"
+    style:--button-y="88px"
+    style:--button-idx="2"
     onclick={pause}
   />
 
   <input
     type="button"
     class="sprite control-buttons-sprite"
-    style="--button-x: calc(16px + (var(--button-width) * 3)); --button-y: 88px; --button-idx: 3;"
+    style:--button-x="calc(16px + (var(--button-width) * 3))"
+    style:--button-y="88px"
+    style:--button-idx="3"
     onclick={stop}
   />
 
   <input
     type="button"
     class="sprite control-buttons-sprite"
-    style="--button-x: calc(16px + (var(--button-width) * 4)); --button-y: 88px; --button-idx: 4; width: 22px; "
+    style:--button-x="calc(16px + (var(--button-width) * 4))"
+    style:--button-y="88px"
+    style:--button-idx="4"
+    style:width="22px"
     onclick={() => dispatchWindowChannelEvent("next-track")}
   />
 
-  <!-- <div class="sprite control-buttons-sprite"
-    style="--button-width: 23px; --button-x: calc(22px + (var(--button-width) * 5)); --button-y: 89px; --button-idx: 5; width: 21px; height: 16px; "
-    id="main">
-  </div> -->
+  <!-- <div
+    class="sprite control-buttons-sprite"
+    style:--button-width="23px"
+    style:--button-x="calc(22px + (var(--button-width) * 5))"
+    style:--button-y="89px"
+    style:--button-idx="5"
+    style:width="21px"
+    style:height="16px"
+    id="main"
+  ></div> -->
 </main>
 
 <style>
