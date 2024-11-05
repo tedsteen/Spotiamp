@@ -17,6 +17,7 @@
   const { initialVolume } = data;
 
   let volume = $state(initialVolume);
+  let seekPosition = $state(0);
 
   $effect(() => {
     emit("volume-change", volume);
@@ -206,6 +207,16 @@
     onmouseup={() => (tickerOverrideEnabled = false)}
   />
   <input
+    type="range"
+    class="sprite seek-position-sprite"
+    id="seek-position"
+    min="0"
+    max="100"
+    bind:value={seekPosition}
+  />
+  <!-- onmousedown={() => (tickerOverrideEnabled = true)}
+  onmouseup={() => (tickerOverrideEnabled = false)} -->
+  <input
     type="button"
     class="sprite control-buttons-sprite"
     style="--button-x: calc(16px + (var(--button-width) * 0)); --button-y: 88px; --button-idx: 0;"
@@ -246,6 +257,36 @@
 </main>
 
 <style>
+  /* ------ SEEK POSITION ------ */
+  .seek-position-sprite {
+    --sprite-url: url(assets/skins/base-2.91/POSBAR.BMP);
+    --sprite-x: 16px;
+    --sprite-y: 72px;
+    width: 249px;
+    height: 10px;
+    background-position: 0px 0px;
+  }
+
+  #seek-position {
+    appearance: none;
+    cursor: url(assets/skins/base-2.91/VOLBAL.CUR), default;
+  }
+
+  #seek-position::-webkit-slider-thumb {
+    background: url(assets/skins/base-2.91/POSBAR.BMP);
+    appearance: none;
+    width: 28px;
+    height: 11px;
+    margin-bottom: 1px;
+    background-position: -249px 11px;
+  }
+
+  #seek-position::-webkit-slider-thumb:active {
+    background-position: -278px 11px;
+  }
+
+  /* ------ /SEEK POSITION ------ */
+
   /* ------ VISUALIZER ------ */
   .visualizer-bar {
     position: absolute;
