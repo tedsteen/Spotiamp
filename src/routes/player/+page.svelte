@@ -54,7 +54,7 @@
     if (playerState == "paused") {
       trackToStartPlaying = undefined; //Don't start playing the loadedTrack, just resume the play
     }
-    console.info("PLAY:", trackToStartPlaying);
+
     await invoke("play", { uri: trackToStartPlaying?.uri }).catch(handleError);
     playerState = "playing";
   }
@@ -105,6 +105,38 @@
   let minutes = $state(0);
   let seconds = $state(0);
 
+  // Send a player ready at startup
+  dispatchWindowChannelEvent("player-ready");
+  // And then respond on every ping...
+  subscribeToWindowChannelEvent("ping-player", () => {
+    dispatchWindowChannelEvent("player-ready");
+  });
+
+  const INITIAL_VISUALIZER_STATE = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ];
+  let visualizerState = $state(INITIAL_VISUALIZER_STATE);
+
+  let visualizerRunning = false;
+  async function startVisualizer() {
+    visualizerRunning = true;
+    while (visualizerRunning) {
+      try {
+        const visualizerData = await invoke("take_latest_spectrum", {});
+        if (visualizerData) {
+          let idx = 0;
+          for (var i of visualizerData) {
+            visualizerState[idx] = Math.min(i[1], 1);
+            idx++;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch visualizer data", e);
+      }
+    }
+    visualizerState = INITIAL_VISUALIZER_STATE;
+  }
+
   /**
    * @type number | undefined
    */
@@ -128,46 +160,12 @@
     if (playerState == "stopped") {
       numberDisplayHidden = true;
       seconds = minutes = 0;
+      visualizerRunning = false;
     } else if (playerState == "playing") {
       numberDisplayHidden = false;
+      startVisualizer();
     }
   });
-
-  // Send a player ready at startup
-  dispatchWindowChannelEvent("player-ready");
-  // And then respond on every ping...
-  subscribeToWindowChannelEvent("ping-player", () => {
-    dispatchWindowChannelEvent("player-ready");
-  });
-
-  let visualizerState = $state([
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  ]);
-  let visualizerRunning = false;
-
-  async function startVisualizer() {
-    visualizerRunning = true;
-    while (visualizerRunning) {
-      try {
-        const visualizerData = await invoke("take_latest_spectrum", {});
-        if (visualizerData) {
-          let idx = 0;
-          for (var i of visualizerData) {
-            visualizerState[idx] = Math.min(i[1], 1);
-            idx++;
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch visualizer data", e);
-      }
-    }
-  }
-
-  function stopVisualizer() {
-    visualizerRunning = false;
-  }
-
-  startVisualizer();
 </script>
 
 <svelte:head>
@@ -194,7 +192,7 @@
     <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
   </div>
   {#each visualizerState as s, i}
-    <div class="visualizer-bar" style="--bar-idx: {i}; --height: {s}"></div>
+    <div class="visualizer-bar" style="--bar-idx: {i}; --height: {s};"></div>
   {/each}
   <input
     type="range"
@@ -250,15 +248,36 @@
 <style>
   /* ------ VISUALIZER ------ */
   .visualizer-bar {
-    background-color: green;
     position: absolute;
     display: inline-block;
-    left: calc((var(--bar-idx) * 4px + 24px) * var(--zoom));
-    width: 6px;
+    left: calc((24px + var(--bar-idx) * 4px) * var(--zoom));
+    width: calc(var(--zoom) * 3px);
 
-    --max-height: 31px;
-    top: calc(86px - var(--height) * var(--max-height) + 32px);
-    height: calc(var(--max-height) * var(--height));
+    --max-height: 16px;
+    top: calc((59px - var(--max-height)) * var(--zoom));
+    height: calc(var(--max-height) * var(--zoom));
+
+    clip-path: rect(
+      calc(var(--zoom) * var(--max-height) * (1 - var(--height))) auto auto auto
+    );
+
+    background: linear-gradient(
+      rgb(213 76 0) 0% 6.67%,
+      rgb(213 89 0) 6.67% 13.34%,
+      rgb(215 102 0) 13.34% 20.009999999999998%,
+      rgb(214 115 1) 20.009999999999998% 26.68%,
+      rgb(197 124 4) 26.68% 33.35%,
+      rgb(222 165 21) 33.35% 40.019999999999996%,
+      rgb(213 181 34) 40.019999999999996% 46.69%,
+      rgb(189 222 42) 46.69% 53.36%,
+      rgb(148 221 34) 53.36% 60.03%,
+      rgb(41 206 16) 60.03% 66.7%,
+      rgb(50 190 16) 66.7% 73.37%,
+      rgb(56 181 17) 73.37% 80.03999999999999%,
+      rgb(49 156 6) 80.03999999999999% 86.71%,
+      rgb(40 148 1) 86.71% 93.38%,
+      rgb(27 132 6) 93.38% 100.05%
+    );
   }
   /* ------ /VISUALIZER ------ */
 
