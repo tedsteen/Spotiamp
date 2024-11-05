@@ -113,21 +113,87 @@
     dispatchWindowChannelEvent("player-ready");
   });
 
+  class Bar {
+    current = $state(0);
+    fade = $state(0);
+    fadeVelocity = 0;
+    gravity = 0.000007;
+    /**
+     * @param {number} index
+     */
+    constructor(index) {
+      this.index = index;
+    }
+
+    /**
+     * @param {number} newValue
+     */
+    setValue(newValue) {
+      this.current = newValue;
+      if (this.fade <= newValue) {
+        this.fade = newValue;
+        this.fadeVelocity = 0.005;
+      }
+    }
+
+    /**
+     * @param {number} deltaTime
+     */
+    update(deltaTime) {
+      this.fadeVelocity = Math.max(
+        this.fadeVelocity - this.gravity * deltaTime,
+        -1,
+      );
+      if (this.fadeVelocity < 0) {
+        this.fade = Math.max(0, this.fade + this.fadeVelocity * deltaTime);
+      }
+    }
+  }
+
   const INITIAL_VISUALIZER_STATE = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    new Bar(0),
+    new Bar(1),
+    new Bar(2),
+    new Bar(3),
+    new Bar(4),
+    new Bar(5),
+    new Bar(6),
+    new Bar(7),
+    new Bar(8),
+    new Bar(9),
+    new Bar(10),
+    new Bar(11),
+    new Bar(12),
+    new Bar(13),
+    new Bar(14),
+    new Bar(15),
+    new Bar(16),
+    new Bar(17),
+    new Bar(18),
   ];
+
   let visualizerState = $state(INITIAL_VISUALIZER_STATE);
 
   let visualizerRunning = false;
   async function startVisualizer() {
     visualizerRunning = true;
+
+    let lastTick = Date.now();
+
     while (visualizerRunning) {
       try {
         const visualizerData = await invoke("take_latest_spectrum", {});
+        const now = Date.now();
+        const deltaTime = now - lastTick;
+        lastTick = now;
         if (visualizerData) {
           let idx = 0;
-          for (var i of visualizerData) {
-            visualizerState[idx] = Math.min(i[1], 1);
+          for (var pair of visualizerData) {
+            const bar = visualizerState[idx];
+            bar.setValue(Math.min(pair[1], 1));
+            if (playerState != "paused") {
+              bar.update(deltaTime);
+            }
             idx++;
           }
         }
@@ -192,8 +258,16 @@
     <NumberDisplay number={minutes.toString().padStart(2, "0")} x="48" y="26" />
     <NumberDisplay number={seconds.toString().padStart(2, "0")} x="78" y="26" />
   </div>
-  {#each visualizerState as s, i}
-    <div class="visualizer-bar" style="--bar-idx: {i}; --height: {s};"></div>
+  {#each visualizerState as bar}
+    <div
+      class="visualizer-bar"
+      style="--bar-idx: {bar.index}; --height: {bar.current};"
+    ></div>
+    <div
+      class="visualizer-hat"
+      style="--bar-idx: {bar.index}; --height: {bar.fade};"
+      class:hidden={bar.fade < 0.01}
+    ></div>
   {/each}
   <input
     type="range"
@@ -319,6 +393,15 @@
       rgb(40 148 1) 86.71% 93.38%,
       rgb(27 132 6) 93.38% 100.05%
     );
+  }
+  .visualizer-hat {
+    position: absolute;
+    --max-height: 16px;
+    background: rgb(150, 150, 150);
+    top: calc((58px + (1px - var(--height) * var(--max-height))) * var(--zoom));
+    width: calc(var(--zoom) * 3px);
+    height: calc(var(--zoom) * 1px);
+    left: calc((24px + var(--bar-idx) * 4px) * var(--zoom));
   }
   /* ------ /VISUALIZER ------ */
 
