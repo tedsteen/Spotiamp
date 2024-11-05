@@ -28,9 +28,9 @@ impl Visualizer {
                 channel_count: 1,
                 processor: ProcessorConfig {
                     sampling_rate: SAMPLE_RATE,
-                    frequency_bounds: [20, 20000],
+                    frequency_bounds: [40, 20000],
                     resolution: Some(19),
-                    volume: 1.0,
+                    volume: 0.8,
                     volume_normalisation: VolumeNormalisation::Mixture,
                     position_normalisation: PositionNormalisation::Harmonic,
                     manual_position_distribution: None,
