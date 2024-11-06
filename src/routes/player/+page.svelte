@@ -10,36 +10,45 @@
     subscribeToWindowChannelEvent,
   } from "$lib/windowChannel";
   // TODO: only export the SpotifyTrack type somehow
-  import { durationToMMSS, SpotifyTrack } from "$lib/spotifyTrack";
+  import {
+    durationToMMSS,
+    durationToString,
+    SpotifyTrack,
+  } from "$lib/spotifyTrack";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data } = $props();
   const { initialVolume } = data;
 
+  /**
+   * @type {SpotifyTrack | undefined}
+   */
+  let loadedTrack = $state();
+
   let volume = $state(initialVolume);
   let seekPosition = $state(0);
+  const currentTime = $derived(durationToMMSS(seekPosition));
+
+  const seekPositionText = $derived(
+    loadedTrack
+      ? `SEEK TO: ${durationToString(seekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((seekPosition / loadedTrack.durationInMs) * 100)}%)`
+      : "NO TRACK LOADED",
+  );
 
   $effect(() => {
     emit("volume-change", volume);
   });
 
-  let volumeYOffs = $derived(-Math.floor((volume / 100.0) * 27) * 15);
+  const volumeYOffs = $derived(-Math.floor((volume / 100.0) * 27) * 15);
   let tickerText = $state("Winamp 2.91");
-  let tickerOverrideEnabled = $state(false);
-  let tickerOverrideText = $derived(
-    tickerOverrideEnabled ? `VOLUME: ${volume}%` : undefined,
-  );
+  const volumeText = $derived(`VOLUME: ${volume}%`);
+  let getTickerOverrideText = $state(() => undefined);
   let numberDisplayHidden = $state(true);
 
   /**
    * @type {"stopped" | "playing" | "paused"}
    */
   let playerState = $state("stopped");
-
-  /**
-   * @type {SpotifyTrack | undefined}
-   */
-  let loadedTrack = $state();
 
   /**
    * @param {SpotifyTrack} track
@@ -116,8 +125,6 @@
     console.info("play-track", track);
     loadAndPlay(track);
   });
-
-  let currentTime = $derived(durationToMMSS(seekPosition));
 
   // Send a player ready at startup
   dispatchWindowChannelEvent("player-ready");
@@ -259,7 +266,7 @@
   ></div>
   <TextTicker
     text={tickerText}
-    textOverride={tickerOverrideText}
+    textOverride={getTickerOverrideText()}
     x="111"
     y="27"
   />
@@ -296,20 +303,22 @@
     min="0"
     max="100"
     bind:value={volume}
-    onmousedown={() => (tickerOverrideEnabled = true)}
-    onmouseup={() => (tickerOverrideEnabled = false)}
+    onmousedown={() => (getTickerOverrideText = () => volumeText)}
+    onmouseup={() => (getTickerOverrideText = () => undefined)}
   />
   <input
     type="range"
     class="sprite seek-position-sprite"
+    class:hidden={loadedTrack == undefined}
     id="seek-position"
     min="0"
     max={loadedTrack?.durationInMs}
     bind:value={seekPosition}
     onchange={() => seek(seekPosition)}
+    onmousedown={() => (getTickerOverrideText = () => seekPositionText)}
+    onmouseup={() => (getTickerOverrideText = () => undefined)}
   />
-  <!-- onmousedown={() => (tickerOverrideEnabled = true)}
-  onmouseup={() => (tickerOverrideEnabled = false)} -->
+
   <input
     type="button"
     class="sprite control-buttons-sprite"

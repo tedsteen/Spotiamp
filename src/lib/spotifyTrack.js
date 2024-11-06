@@ -23,7 +23,7 @@ export function durationToMMSS(durationInMs) {
  * @param {number} durationInMs
  * @returns {string}
  */
-function durationToString(durationInMs) {
+export function durationToString(durationInMs) {
     const hhmmss = durationToMMSS(durationInMs);
 
     let timeString = hhmmss.m.toString().padStart(1, '0') + ':' +
