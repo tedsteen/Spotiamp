@@ -102,9 +102,13 @@
   }
 
   async function play() {
-    if (playerState == "stopped" && loadedTrack) {
-      await invoke("load_track", { uri: loadedTrack.uri }).catch(handleError);
+    if (loadedTrack) {
+      if (playerState == "stopped") {
+        playerState = "playing"; // To make the UI a bit snappier
+        await invoke("load_track", { uri: loadedTrack.uri }).catch(handleError);
+      }
     }
+
     await invoke("play").catch(handleError);
   }
 
@@ -116,10 +120,12 @@
   // });
 
   async function pause() {
+    playerState = "paused"; // To make the UI a bit snappier
     await invoke("pause").catch(handleError);
   }
 
   async function stop() {
+    playerState = "stopped"; // To make the UI a bit snappier
     await invoke("stop").catch(handleError);
   }
 
@@ -202,7 +208,7 @@
     new Bar(18),
   ];
 
-  let visualizerState = $state(INITIAL_VISUALIZER_STATE);
+  const visualizerBars = $state(INITIAL_VISUALIZER_STATE);
 
   let visualizerRunning = false;
   async function startVisualizer() {
@@ -220,7 +226,7 @@
         if (visualizerData) {
           let idx = 0;
           for (var pair of visualizerData) {
-            const bar = visualizerState[idx];
+            const bar = visualizerBars[idx];
             bar.setValue(Math.min(pair[1], 1));
             bar.update(deltaTime);
             idx++;
@@ -228,6 +234,12 @@
         }
       } catch (e) {
         console.error("Failed to fetch visualizer data", e);
+      }
+    }
+
+    if (playerState == "stopped" || playerState == "loaded") {
+      for (const bar of visualizerBars) {
+        bar.reset();
       }
     }
   }
@@ -253,10 +265,6 @@
     if (playerState == "stopped" || playerState == "loaded") {
       numberDisplayHidden = true;
       visualizerRunning = false;
-      // Reset the visualizer
-      for (const b of visualizerState) {
-        b.reset();
-      }
     } else if (playerState == "paused") {
       visualizerRunning = false;
     } else if (playerState == "playing") {
@@ -297,7 +305,7 @@
       y="26"
     />
   </div>
-  {#each visualizerState as bar}
+  {#each visualizerBars as bar}
     <div
       class="visualizer-bar"
       style:--bar-idx={bar.index}
