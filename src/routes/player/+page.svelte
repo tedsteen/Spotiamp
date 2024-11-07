@@ -2,7 +2,12 @@
   import { invoke } from "@tauri-apps/api/core";
   import { emit } from "@tauri-apps/api/event";
 
-  import { handleError, handleDrop, spotifyUrlToTrack } from "$lib/common.js";
+  import {
+    handleError,
+    handleDrop,
+    spotifyUrlToTrack,
+    subscribeToPlayerEvents,
+  } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import {
@@ -42,12 +47,7 @@
     seekPosition = uiSeekPosition = position_ms;
   }
 
-  import { getCurrentWindow } from "@tauri-apps/api/window";
-
-  /**
-   * @param { { payload: { 'TrackChanged': {track_id: number, track_uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} event
-   */
-  function handlePlayerEvent({ payload }) {
+  subscribeToPlayerEvents(({ payload }) => {
     console.info("EVENT", payload);
     if (payload.TrackChanged) {
       let { track_uri, artist, name, duration } = payload.TrackChanged;
@@ -75,14 +75,8 @@
     } else if (payload.Seeked) {
       let { id, position_ms } = payload.Seeked;
       setSeekPosition(position_ms);
-    } else if (payload.EndOfTrack) {
-      let { id } = payload.EndOfTrack;
-      playerState = "stopped";
-    } else {
-      console.error("Unhandled player event: ", payload);
     }
-  }
-  getCurrentWindow().listen("player", handlePlayerEvent);
+  });
 
   const currentTime = $derived(durationToMMSS(seekPosition));
 

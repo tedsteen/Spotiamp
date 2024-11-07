@@ -6,6 +6,7 @@
     range,
     handleDrop,
     handleError,
+    subscribeToPlayerEvents,
   } from "$lib/common.js";
   import {
     dispatchWindowChannelEvent,
@@ -92,18 +93,33 @@
     });
   });
 
-  subscribeToWindowChannelEvent("next-track", () => {
+  function playNext() {
     const currRowIndex = rows.indexOf(loadedRow);
     const nextRow = rows[currRowIndex + 1];
     console.info("next-track", currRowIndex, nextRow);
-    nextRow?.load();
-  });
+    if (nextRow) {
+      nextRow.load();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  subscribeToWindowChannelEvent("next-track", playNext);
 
   subscribeToWindowChannelEvent("previous-track", () => {
     const currRowIndex = rows.indexOf(loadedRow);
     const previousRow = rows[currRowIndex - 1];
     console.info("previous-track", currRowIndex, previousRow);
     previousRow?.load();
+  });
+
+  subscribeToPlayerEvents(({ payload }) => {
+    if (payload.EndOfTrack) {
+      if (!playNext()) {
+        invoke("stop").catch(handleError);
+      }
+    }
   });
 
   spotifyUrlToTrack(

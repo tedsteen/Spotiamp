@@ -94,3 +94,16 @@ export async function spotifyUrlToTrack(url) {
     return await getTrack(spotifyUrlToUri(url))
 }
 
+/**
+ * @callback playerEventCallback
+ * @param { { payload: { 'TrackChanged': {track_id: number, track_uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} event
+ */
+
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+/**
+ * @param {playerEventCallback} callback 
+ */
+export function subscribeToPlayerEvents(callback) {
+    getCurrentWindow().listen("player", callback);
+}
