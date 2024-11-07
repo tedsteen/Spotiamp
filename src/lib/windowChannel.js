@@ -2,7 +2,7 @@ import { SpotifyTrack } from "$lib/spotifyTrack";
 
 const WINDOW_CHANNEL = new BroadcastChannel('window_channel');
 /**
- * @typedef {{'load-track': SpotifyTrack, 'play-track': SpotifyTrack, 'next-track': undefined, 'previous-track': undefined, 'ping-player': undefined, 'player-ready': undefined}} WindowChannelEventTypes
+ * @typedef {{'load-track': SpotifyTrack, 'play-track': SpotifyTrack, 'next-track': undefined, 'previous-track': undefined}} WindowChannelEventTypes
  */
 
 /**

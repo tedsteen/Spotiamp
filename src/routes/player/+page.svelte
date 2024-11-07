@@ -2,12 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { emit } from "@tauri-apps/api/event";
 
-  import {
-    handleError,
-    handleDrop,
-    spotifyUrlToTrack,
-    subscribeToPlayerEvents,
-  } from "$lib/common.js";
+  import { handleError, subscribeToPlayerEvents } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import {
@@ -29,16 +24,16 @@
    * @type {SpotifyTrack | undefined}
    */
   let loadedTrack = $state();
-
   let volume = $state(initialVolume);
   let uiSeekPosition = $state(0);
   let seekPosition = $state(0);
-
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */
-
   let uiInputState = $state("nothing");
+  const currentTime = $derived(durationToMMSS(seekPosition));
+  const volumeYOffs = $derived(-Math.floor((volume / 100.0) * 27) * 15);
+  let tickerText = $state("Winamp 2.91");
 
   /**
    * @param {number} position_ms
@@ -55,11 +50,11 @@
       loadTrack(track);
       setSeekPosition(0);
     } else if (payload.Playing) {
-      let { id, position_ms } = payload.Playing;
+      let { position_ms } = payload.Playing;
       playerState = "playing";
       setSeekPosition(position_ms);
     } else if (payload.Paused) {
-      let { id, position_ms } = payload.Paused;
+      let { position_ms } = payload.Paused;
       if (position_ms == 0) {
         playerState = "loaded";
       } else {
@@ -67,37 +62,27 @@
       }
       setSeekPosition(position_ms);
     } else if (payload.Stopped) {
-      let { id } = payload.Stopped;
       playerState = "stopped";
     } else if (payload.PositionCorrection) {
-      let { id, position_ms } = payload.PositionCorrection;
+      let { position_ms } = payload.PositionCorrection;
       setSeekPosition(position_ms);
     } else if (payload.Seeked) {
-      let { id, position_ms } = payload.Seeked;
+      let { position_ms } = payload.Seeked;
       setSeekPosition(position_ms);
     }
   });
-
-  const currentTime = $derived(durationToMMSS(seekPosition));
-
-  const uiSeekPositionText = $derived(
-    loadedTrack
-      ? `SEEK TO: ${durationToString(uiSeekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((uiSeekPosition / loadedTrack.durationInMs) * 100)}%)`
-      : "NO TRACK LOADED",
-  );
 
   $effect(() => {
     emit("volume-change", volume);
   });
 
-  const volumeYOffs = $derived(-Math.floor((volume / 100.0) * 27) * 15);
-  let tickerText = $state("Winamp 2.91");
-  const volumeText = $derived(`VOLUME: ${volume}%`);
   let tickerOverrideText = $derived.by(() => {
     if (uiInputState == "seeking") {
-      return uiSeekPositionText;
+      return loadedTrack
+        ? `SEEK TO: ${durationToString(uiSeekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((uiSeekPosition / loadedTrack.durationInMs) * 100)}%)`
+        : "NO TRACK LOADED";
     } else if (uiInputState == "volume-change") {
-      return volumeText;
+      return `VOLUME: ${volume}%`;
     }
   });
 
@@ -154,13 +139,6 @@
       }
     }
   }
-
-  // Send a player ready at startup
-  dispatchWindowChannelEvent("player-ready");
-  // And then respond on every ping...
-  subscribeToWindowChannelEvent("ping-player", () => {
-    dispatchWindowChannelEvent("player-ready");
-  });
 
   class Bar {
     current = $state(0);

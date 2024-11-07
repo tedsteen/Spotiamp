@@ -1,10 +1,7 @@
-import { dispatchWindowChannelEvent, subscribeToWindowChannelEvent } from '$lib/windowChannel';
-
 /** @type {import('./$types').PageLoad} */
 export async function load({ }) {
-    dispatchWindowChannelEvent('ping-player');
     await new Promise((resolve) => {
-        subscribeToWindowChannelEvent("player-ready", resolve);
+        resolve(undefined); //TODO: wait for playlist to be ready?
     });
 
     return {};
