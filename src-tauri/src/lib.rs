@@ -1,7 +1,10 @@
 use std::sync::OnceLock;
 
+use librespot::playback::player::PlayerEvent;
+use player_window::TrackData;
+use serde::Serialize;
 use spotify::{SessionError, SpotifyPlayer};
-use tauri::{async_runtime::spawn, AppHandle, Listener};
+use tauri::{async_runtime::spawn, AppHandle, Emitter, Listener};
 use thiserror::Error;
 use tokio::sync::Mutex;
 mod oauth;
@@ -33,10 +36,21 @@ enum StartError {
     WindowsPositioningFailed { e: tauri::Error },
 }
 
+type SpotifyId1 = u128;
+
+#[derive(Clone, Serialize)]
+enum PlayerEvent1 {
+    Stopped { id: SpotifyId1 },
+    Paused { id: SpotifyId1, position_ms: u32 },
+    EndOfTrack { id: SpotifyId1 },
+    PositionCorrection { id: SpotifyId1, position_ms: u32 },
+    Seeked { id: SpotifyId1, position_ms: u32 },
+    TrackChanged(TrackData),
+    Playing { id: SpotifyId1, position_ms: u32 },
+}
 async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
-    player()
-        .lock()
-        .await
+    let player = player().lock().await;
+    player
         .login(app_handle)
         .await
         .map_err(|e| StartError::LoginFailed { e })?;
@@ -49,6 +63,59 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
             e,
         }
     })?;
+
+    let mut channel = player.get_player_event_channel();
+    let player_window_ref = player_window.clone();
+    tauri::async_runtime::spawn(async move {
+        while let Some(player_event) = channel.recv().await {
+            if let Some(player_event) = match player_event {
+                PlayerEvent::Playing {
+                    track_id,
+                    position_ms,
+                    ..
+                } => Some(PlayerEvent1::Playing {
+                    id: track_id.id,
+                    position_ms,
+                }),
+                PlayerEvent::Stopped { track_id, .. } => {
+                    Some(PlayerEvent1::Stopped { id: track_id.id })
+                }
+                PlayerEvent::Paused {
+                    track_id,
+                    position_ms,
+                    ..
+                } => Some(PlayerEvent1::Paused {
+                    id: track_id.id,
+                    position_ms,
+                }),
+                PlayerEvent::EndOfTrack { track_id, .. } => {
+                    Some(PlayerEvent1::EndOfTrack { id: track_id.id })
+                }
+                PlayerEvent::PositionCorrection {
+                    track_id,
+                    position_ms,
+                    ..
+                } => Some(PlayerEvent1::PositionCorrection {
+                    id: track_id.id,
+                    position_ms,
+                }),
+                PlayerEvent::Seeked {
+                    track_id,
+                    position_ms,
+                    ..
+                } => Some(PlayerEvent1::Seeked {
+                    id: track_id.id,
+                    position_ms,
+                }),
+                PlayerEvent::TrackChanged { audio_item } => {
+                    Some(PlayerEvent1::TrackChanged(TrackData::from(*audio_item)))
+                }
+                _ => None,
+            } {
+                let _ = player_window_ref.emit("player", player_event);
+            }
+        }
+    });
 
     let mut playlist_position = player_window
         .outer_position()
@@ -80,6 +147,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             player_window::get_track,
+            player_window::load_track,
             player_window::play,
             player_window::pause,
             player_window::stop,

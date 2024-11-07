@@ -26,12 +26,69 @@
   let loadedTrack = $state();
 
   let volume = $state(initialVolume);
+  let uiSeekPosition = $state(0);
   let seekPosition = $state(0);
+
+  /**
+   * @type {'nothing' | 'seeking' | 'volume-change'}
+   */
+
+  let uiInputState = $state("nothing");
+
+  /**
+   * @param {number} position_ms
+   */
+  function setSeekPosition(position_ms) {
+    seekPosition = uiSeekPosition = position_ms;
+  }
+
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+
+  /**
+   * @param { { payload: { 'TrackChanged': {track_id: number, track_uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} event
+   */
+  function handlePlayerEvent({ payload }) {
+    console.info("EVENT", payload);
+    if (payload.TrackChanged) {
+      let { track_uri, artist, name, duration } = payload.TrackChanged;
+      const track = new SpotifyTrack(artist, name, duration, track_uri);
+      loadTrack(track);
+      setSeekPosition(0);
+    } else if (payload.Playing) {
+      let { id, position_ms } = payload.Playing;
+      playerState = "playing";
+      setSeekPosition(position_ms);
+    } else if (payload.Paused) {
+      let { id, position_ms } = payload.Paused;
+      if (position_ms == 0) {
+        playerState = "loaded";
+      } else {
+        playerState = "paused";
+      }
+      setSeekPosition(position_ms);
+    } else if (payload.Stopped) {
+      let { id } = payload.Stopped;
+      playerState = "stopped";
+    } else if (payload.PositionCorrection) {
+      let { id, position_ms } = payload.PositionCorrection;
+      setSeekPosition(position_ms);
+    } else if (payload.Seeked) {
+      let { id, position_ms } = payload.Seeked;
+      setSeekPosition(position_ms);
+    } else if (payload.EndOfTrack) {
+      let { id } = payload.EndOfTrack;
+      playerState = "stopped";
+    } else {
+      console.error("Unhandled player event: ", payload);
+    }
+  }
+  getCurrentWindow().listen("player", handlePlayerEvent);
+
   const currentTime = $derived(durationToMMSS(seekPosition));
 
-  const seekPositionText = $derived(
+  const uiSeekPositionText = $derived(
     loadedTrack
-      ? `SEEK TO: ${durationToString(seekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((seekPosition / loadedTrack.durationInMs) * 100)}%)`
+      ? `SEEK TO: ${durationToString(uiSeekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((uiSeekPosition / loadedTrack.durationInMs) * 100)}%)`
       : "NO TRACK LOADED",
   );
 
@@ -42,60 +99,52 @@
   const volumeYOffs = $derived(-Math.floor((volume / 100.0) * 27) * 15);
   let tickerText = $state("Winamp 2.91");
   const volumeText = $derived(`VOLUME: ${volume}%`);
-  let getTickerOverrideText = $state(() => undefined);
+  let tickerOverrideText = $derived.by(() => {
+    if (uiInputState == "seeking") {
+      return uiSeekPositionText;
+    } else if (uiInputState == "volume-change") {
+      return volumeText;
+    }
+  });
+
   let numberDisplayHidden = $state(true);
 
   /**
-   * @type {"stopped" | "playing" | "paused"}
+   * @type {"loaded" | "stopped" | "playing" | "paused"}
    */
   let playerState = $state("stopped");
 
   /**
    * @param {SpotifyTrack} track
    */
-  function loadTrack(track) {
+  async function loadTrack(track) {
     tickerText = `${track.artist} - ${track.name} (${track.durationAsString})`;
     loadedTrack = track;
-    playerState = "stopped";
+    if (playerState == "playing" || playerState == "paused") {
+      await play();
+    }
   }
 
   async function play() {
-    let trackToStartPlaying = loadedTrack;
-    if (playerState == "paused") {
-      trackToStartPlaying = undefined; //Don't start playing the loadedTrack, just resume the play
+    if (playerState == "stopped" && loadedTrack) {
+      await invoke("load_track", { uri: loadedTrack.uri }).catch(handleError);
     }
-
-    await invoke("play", { uri: trackToStartPlaying?.uri }).catch(handleError);
-    playerState = "playing";
+    await invoke("play").catch(handleError);
   }
 
-  /**
-   * @param {SpotifyTrack} track
-   */
-  async function loadAndPlay(track) {
-    loadTrack(track);
-    play().catch(handleError);
-  }
-
-  handleDrop((url) => {
-    //TODO: Replace all in playlist with this
-    spotifyUrlToTrack(url).then((track) => {
-      loadAndPlay(track);
-    });
-  });
+  // handleDrop((url) => {
+  //   //TODO: Replace all in playlist with the dropped link
+  //   spotifyUrlToTrack(url).then((track) => {
+  //     loadAndPlay(track);
+  //   });
+  // });
 
   async function pause() {
-    if (playerState == "playing") {
-      await invoke("pause").catch(handleError);
-      playerState = "paused";
-    }
+    await invoke("pause").catch(handleError);
   }
 
   async function stop() {
-    if (playerState != "stopped") {
-      await invoke("stop").catch(handleError);
-      playerState = "stopped";
-    }
+    await invoke("stop").catch(handleError);
   }
 
   /**
@@ -104,27 +153,13 @@
    */
   async function seek(positionMs) {
     if (loadedTrack) {
-      if (playerState == "playing" || playerState == "paused") {
+      if (playerState != "stopped") {
         await invoke("seek", {
           positionMs,
         }).catch(handleError);
       }
     }
   }
-
-  subscribeToWindowChannelEvent("load-track", (track) => {
-    console.info("load-track", track);
-    if (playerState != "stopped") {
-      loadAndPlay(track);
-    } else {
-      loadTrack(track);
-    }
-  });
-
-  subscribeToWindowChannelEvent("play-track", (track) => {
-    console.info("play-track", track);
-    loadAndPlay(track);
-  });
 
   // Send a player ready at startup
   dispatchWindowChannelEvent("player-ready");
@@ -143,6 +178,12 @@
      */
     constructor(index) {
       this.index = index;
+    }
+
+    reset() {
+      this.current = 0;
+      this.fade = 0;
+      this.fadeVelocity = 0;
     }
 
     /**
@@ -202,18 +243,17 @@
 
     while (visualizerRunning) {
       try {
-        const visualizerData = await invoke("take_latest_spectrum", {});
         const now = Date.now();
         const deltaTime = now - lastTick;
+
+        const visualizerData = await invoke("take_latest_spectrum", {});
         lastTick = now;
         if (visualizerData) {
           let idx = 0;
           for (var pair of visualizerData) {
             const bar = visualizerState[idx];
             bar.setValue(Math.min(pair[1], 1));
-            if (playerState != "paused") {
-              bar.update(deltaTime);
-            }
+            bar.update(deltaTime);
             idx++;
           }
         }
@@ -221,7 +261,6 @@
         console.error("Failed to fetch visualizer data", e);
       }
     }
-    visualizerState = INITIAL_VISUALIZER_STATE;
   }
 
   /**
@@ -235,14 +274,21 @@
         if (playerState == "paused") {
           numberDisplayHidden = !numberDisplayHidden;
         } else {
-          seekPosition += 1000;
+          if (uiInputState != "seeking") {
+            setSeekPosition(seekPosition + 1000);
+          }
         }
       }, 1000);
     }
 
-    if (playerState == "stopped") {
+    if (playerState == "stopped" || playerState == "loaded") {
       numberDisplayHidden = true;
-      seekPosition = 0;
+      visualizerRunning = false;
+      // Reset the visualizer
+      for (const b of visualizerState) {
+        b.reset();
+      }
+    } else if (playerState == "paused") {
       visualizerRunning = false;
     } else if (playerState == "playing") {
       numberDisplayHidden = false;
@@ -266,7 +312,7 @@
   ></div>
   <TextTicker
     text={tickerText}
-    textOverride={getTickerOverrideText()}
+    textOverride={tickerOverrideText}
     x="111"
     y="27"
   />
@@ -303,20 +349,20 @@
     min="0"
     max="100"
     bind:value={volume}
-    onmousedown={() => (getTickerOverrideText = () => volumeText)}
-    onmouseup={() => (getTickerOverrideText = () => undefined)}
+    onmousedown={() => (uiInputState = "volume-change")}
+    onmouseup={() => (uiInputState = "nothing")}
   />
   <input
     type="range"
     class="sprite seek-position-sprite"
-    class:hidden={loadedTrack == undefined}
+    class:hidden={playerState == "stopped" || playerState == "loaded"}
     id="seek-position"
     min="0"
     max={loadedTrack?.durationInMs}
-    bind:value={seekPosition}
-    onchange={() => seek(seekPosition)}
-    onmousedown={() => (getTickerOverrideText = () => seekPositionText)}
-    onmouseup={() => (getTickerOverrideText = () => undefined)}
+    bind:value={uiSeekPosition}
+    onchange={() => seek(uiSeekPosition)}
+    onmousedown={() => (uiInputState = "seeking")}
+    onmouseup={() => (uiInputState = "nothing")}
   />
 
   <input
@@ -485,7 +531,8 @@
     background-position: -9px 0px;
   }
 
-  .playpause-stopped {
+  .playpause-stopped,
+  .playpause-loaded {
     background-position: -18px 0px;
   }
 

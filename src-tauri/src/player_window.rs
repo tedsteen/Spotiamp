@@ -1,27 +1,65 @@
-use librespot::{core::SpotifyId, metadata::Track};
+use librespot::{
+    core::SpotifyId,
+    metadata::{audio::AudioItem, Track},
+};
 use serde::Serialize;
 use tauri::{AppHandle, WebviewWindow};
 
 use crate::player;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TrackData {
+    track_id: u128,
+    track_uri: String,
     artist: String,
     name: String,
-    duration: String,
+    duration: u32,
 }
-
+impl TrackData {
+    pub fn new(track_id: SpotifyId, artist: &str, name: &str, duration: u32) -> Self {
+        Self {
+            track_id: track_id.id,
+            track_uri: track_id.to_uri().expect("a valid uri"),
+            artist: artist.to_string(),
+            name: name.to_string(),
+            duration,
+        }
+    }
+}
 impl From<Track> for TrackData {
     fn from(track: Track) -> Self {
-        Self {
-            artist: track
+        Self::new(
+            track.id,
+            &track
                 .artists
                 .first()
                 .map(|artist| artist.name.clone())
                 .unwrap_or("Unknown Artist".to_string()),
-            name: track.name,
-            duration: format!("{}", track.duration),
-        }
+            &track.name,
+            track.duration as u32,
+        )
+    }
+}
+impl From<AudioItem> for TrackData {
+    fn from(value: AudioItem) -> Self {
+        let artist = match value.unique_fields {
+            librespot::metadata::audio::UniqueFields::Track { artists, .. } => artists
+                .iter()
+                .find(|artist_with_role| {
+                    matches!(
+                        artist_with_role.role,
+                        librespot::metadata::artist::ArtistRole::ARTIST_ROLE_MAIN_ARTIST
+                    )
+                })
+                .map(|artist_with_role| artist_with_role.name.clone()),
+            librespot::metadata::audio::UniqueFields::Episode { show_name, .. } => Some(show_name),
+        };
+        Self::new(
+            value.track_id,
+            &artist.unwrap_or("Unknown Artist".to_string()),
+            &value.name,
+            value.duration_ms,
+        )
     }
 }
 
@@ -38,12 +76,18 @@ pub async fn take_latest_spectrum() -> Result<Vec<(f32, f32)>, ()> {
 }
 
 #[tauri::command]
-pub async fn play(uri: Option<&str>) -> Result<(), String> {
+pub async fn load_track(uri: &str) -> Result<(), String> {
     let spotify_player = &mut player().lock().await;
     spotify_player
-        .play(uri)
+        .load_track(uri)
         .await
-        .map_err(|e| format!("TODO: Failed to play ({e:?})"))?;
+        .map_err(|e| format!("TODO: Failed to load track ({e:?})"))
+}
+
+#[tauri::command]
+pub async fn play() -> Result<(), String> {
+    let spotify_player = &mut player().lock().await;
+    spotify_player.play();
 
     Ok(())
 }

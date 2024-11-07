@@ -18,7 +18,7 @@ use librespot::{
         config::{AudioFormat, Bitrate, NormalisationMethod, NormalisationType, PlayerConfig},
         dither::{mk_ditherer, TriangularDitherer},
         mixer::VolumeGetter,
-        player::{duration_to_coefficient, Player},
+        player::{duration_to_coefficient, Player, PlayerEventChannel},
     },
 };
 use oauth2::TokenResponse;
@@ -154,18 +154,18 @@ impl SpotifyPlayer {
         ))
     }
 
-    pub async fn play(&mut self, uri: Option<&str>) -> Result<(), PlayError> {
-        log::debug!("Play!");
-        if let Some(uri) = uri {
-            self.player.load(
-                SpotifyId::from_uri(uri).map_err(|e| PlayError::TrackMetadataError { e })?,
-                false,
-                0,
-            );
-        }
-
-        self.player.play();
+    pub async fn load_track(&self, uri: &str) -> Result<(), PlayError> {
+        self.player.load(
+            SpotifyId::from_uri(uri).map_err(|e| PlayError::TrackMetadataError { e })?,
+            false,
+            0,
+        );
         Ok(())
+    }
+
+    pub fn play(&mut self) {
+        log::debug!("Play!");
+        self.player.play();
     }
 
     pub async fn pause(&mut self) -> Result<(), PlayError> {
@@ -203,6 +203,10 @@ impl SpotifyPlayer {
 
     pub fn take_latest_spectrum(&mut self) -> Vec<(f32, f32)> {
         self.visualizer.lock().unwrap().take_latest_spectrum()
+    }
+
+    pub fn get_player_event_channel(&self) -> PlayerEventChannel {
+        self.player.get_player_event_channel()
     }
 }
 

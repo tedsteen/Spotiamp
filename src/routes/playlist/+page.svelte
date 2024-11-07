@@ -5,6 +5,7 @@
     setZoom,
     range,
     handleDrop,
+    handleError,
   } from "$lib/common.js";
   import {
     dispatchWindowChannelEvent,
@@ -12,6 +13,7 @@
   } from "$lib/windowChannel";
   // TODO: only import the type somehow
   import { SpotifyTrack } from "$lib/spotifyTrack";
+  import { invoke } from "@tauri-apps/api/core";
 
   const ZOOM = 1;
   setZoom(ZOOM);
@@ -35,14 +37,16 @@
       this.track = track;
     }
 
-    load() {
+    async load() {
       loadedRow = this;
-      dispatchWindowChannelEvent("load-track", this.track);
+      //dispatchWindowChannelEvent("load-track", this.track);
+      await invoke("load_track", { uri: this.track.uri }).catch(handleError);
     }
 
     play() {
-      dispatchWindowChannelEvent("play-track", this.track);
-      loadedRow = this;
+      this.load().then(() => {
+        invoke("play", {}).catch(handleError);
+      });
     }
 
     isLoaded() {
