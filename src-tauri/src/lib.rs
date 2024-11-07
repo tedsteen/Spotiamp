@@ -36,17 +36,15 @@ enum StartError {
     WindowsPositioningFailed { e: tauri::Error },
 }
 
-type SpotifyId1 = u128;
-
 #[derive(Clone, Serialize)]
 enum PlayerEvent1 {
-    Stopped { id: SpotifyId1 },
-    Paused { id: SpotifyId1, position_ms: u32 },
-    EndOfTrack { id: SpotifyId1 },
-    PositionCorrection { id: SpotifyId1, position_ms: u32 },
-    Seeked { id: SpotifyId1, position_ms: u32 },
+    Stopped { id: u128 },
+    Paused { id: u128, position_ms: u32 },
+    EndOfTrack { id: u128 },
+    PositionCorrection { id: u128, position_ms: u32 },
+    Seeked { id: u128, position_ms: u32 },
     TrackChanged(TrackData),
-    Playing { id: SpotifyId1, position_ms: u32 },
+    Playing { id: u128, position_ms: u32 },
 }
 async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
     let player = player().lock().await;

@@ -5,10 +5,7 @@
   import { handleError, subscribeToPlayerEvents } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
-  import {
-    dispatchWindowChannelEvent,
-    subscribeToWindowChannelEvent,
-  } from "$lib/windowChannel";
+  import { dispatchWindowChannelEvent } from "$lib/windowChannel";
   // TODO: only export the SpotifyTrack type somehow
   import {
     durationToMMSS,

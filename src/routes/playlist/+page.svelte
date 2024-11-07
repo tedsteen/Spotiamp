@@ -8,10 +8,7 @@
     handleError,
     subscribeToPlayerEvents,
   } from "$lib/common.js";
-  import {
-    dispatchWindowChannelEvent,
-    subscribeToWindowChannelEvent,
-  } from "$lib/windowChannel";
+  import { subscribeToWindowChannelEvent } from "$lib/windowChannel";
   // TODO: only import the type somehow
   import { SpotifyTrack } from "$lib/spotifyTrack";
   import { invoke } from "@tauri-apps/api/core";
