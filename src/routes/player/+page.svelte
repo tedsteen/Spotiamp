@@ -41,7 +41,7 @@
   }
 
   subscribeToPlayerEvents(({ payload }) => {
-    console.info("EVENT", payload);
+    //console.info("EVENT", payload);
     if (payload.TrackChanged) {
       let { track_uri, artist, name, duration } = payload.TrackChanged;
       const track = new SpotifyTrack(artist, name, duration, track_uri);
@@ -162,30 +162,16 @@
     }
   });
 
-  /**
-   * @type number | undefined
-   */
-  let playOrPauseInterval;
-  $effect(() => {
-    clearInterval(playOrPauseInterval);
-    if (playerState == "paused" || playerState == "playing") {
-      playOrPauseInterval = setInterval(() => {
-        if (playerState == "paused") {
-          numberDisplayHidden = !numberDisplayHidden;
-        } else {
-          if (uiInputState != "seeking") {
-            setSeekPosition(seekPosition + 1000);
-          }
-        }
-      }, 1000);
+  // Tick seek position and blink number display
+  setInterval(() => {
+    if (playerState == "paused") {
+      numberDisplayHidden = !numberDisplayHidden;
+    } else {
+      if (uiInputState != "seeking") {
+        setSeekPosition(seekPosition + 1000);
+      }
     }
-
-    if (playerState == "stopped" || playerState == "loaded") {
-      numberDisplayHidden = true;
-    } else if (playerState == "playing") {
-      numberDisplayHidden = false;
-    }
-  });
+  }, 1000);
 
   emit("player-window-ready");
 </script>
@@ -209,7 +195,11 @@
     x="111"
     y="27"
   />
-  <div class:hidden={numberDisplayHidden}>
+  <div
+    class:hidden={playerState == "stopped" ||
+      playerState == "loaded" ||
+      (playerState == "paused" && numberDisplayHidden)}
+  >
     <NumberDisplay
       number={currentTime.m.toString().padStart(2, "0")}
       x="48"
