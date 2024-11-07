@@ -31,9 +31,6 @@ enum StartError {
 
     #[error("Failed to login ({e:?}")]
     LoginFailed { e: SessionError },
-
-    #[error("Failed to position windows ({e:?}")]
-    WindowsPositioningFailed { e: tauri::Error },
 }
 
 #[derive(Clone, Serialize)]
@@ -54,15 +51,13 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
         .map_err(|e| StartError::LoginFailed { e })?;
 
     let zoom = 2.0;
-
+    let mut channel = player.get_player_event_channel();
     let player_window = player_window::build_window(app_handle, zoom).map_err(|e| {
         StartError::WindowCreationFailed {
             window_name: "Player".to_string(),
             e,
         }
     })?;
-
-    let mut channel = player.get_player_event_channel();
     let player_window_ref = player_window.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(player_event) = channel.recv().await {
@@ -115,26 +110,28 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
         }
     });
 
-    let mut playlist_position = player_window
-        .outer_position()
-        .map_err(|e| StartError::WindowsPositioningFailed { e })?;
-    playlist_position.y += player_window
-        .outer_size()
-        .map_err(|e| StartError::WindowsPositioningFailed { e })?
-        .height as i32;
-    playlist_window::build_window(
-        app_handle,
-        zoom,
-        playlist_position.to_logical(
-            player_window
-                .scale_factor()
-                .map_err(|e| StartError::WindowsPositioningFailed { e })?,
-        ),
-    )
-    .map_err(|e| StartError::WindowCreationFailed {
-        window_name: "Playlist".to_string(),
-        e,
-    })?;
+    let app_handle = app_handle.clone();
+    app_handle.clone().listen("player-window-ready", move |e| {
+        app_handle.unlisten(e.id()); // only listen to first event
+        let mut playlist_position = player_window
+            .outer_position()
+            .expect("a position for the player window");
+        playlist_position.y += player_window
+            .outer_size()
+            .expect("a player windoow position")
+            .height as i32;
+        playlist_window::build_window(
+            &app_handle,
+            zoom,
+            playlist_position.to_logical(
+                player_window
+                    .scale_factor()
+                    .expect("a logical playlist position"),
+            ),
+        )
+        .expect("a playlist window to be created");
+    });
+
     Ok(())
 }
 
@@ -155,6 +152,7 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
+
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = start_app(&app_handle).await {
                     log::error!("Failed to start ({e:?})");

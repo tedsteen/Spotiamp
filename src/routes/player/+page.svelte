@@ -272,6 +272,8 @@
       startVisualizer();
     }
   });
+
+  emit("player-window-ready");
 </script>
 
 <svelte:head>
