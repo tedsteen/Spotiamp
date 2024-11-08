@@ -213,10 +213,10 @@
       style:--height={bar.current}
     ></div>
     <div
-      class="visualizer-hat"
+      class="visualizer-bar-hat"
       style:--bar-idx={bar.index}
-      style:--height={bar.fade}
-      class:hidden={bar.fade < 0.01}
+      style:--height={bar.hat}
+      class:hidden={bar.hat < 0.01}
     ></div>
   {/each}
   <input
@@ -364,7 +364,7 @@
       rgb(27 132 6) 93.38% 100.05%
     );
   }
-  .visualizer-hat {
+  .visualizer-bar-hat {
     position: absolute;
     --max-height: 16px;
     background: rgb(150, 150, 150);

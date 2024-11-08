@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 class Bar {
     current = $state(0);
-    fade = $state(0);
-    fadeVelocity = 0;
+    hat = $state(0);
+    hatVelocity = 0;
     gravity = 0.000007;
     /**
      * @param {number} index
@@ -14,8 +14,8 @@ class Bar {
 
     reset() {
         this.current = 0;
-        this.fade = 0;
-        this.fadeVelocity = 0;
+        this.hat = 0;
+        this.hatVelocity = 0;
     }
 
     /**
@@ -23,9 +23,9 @@ class Bar {
      */
     setValue(newValue) {
         this.current = newValue;
-        if (this.fade <= newValue) {
-            this.fade = newValue;
-            this.fadeVelocity = 0.005;
+        if (this.hat <= newValue) {
+            this.hat = newValue;
+            this.hatVelocity = 0.005;
         }
     }
 
@@ -33,12 +33,12 @@ class Bar {
      * @param {number} deltaTime
      */
     update(deltaTime) {
-        this.fadeVelocity = Math.max(
-            this.fadeVelocity - this.gravity * deltaTime,
+        this.hatVelocity = Math.max(
+            this.hatVelocity - this.gravity * deltaTime,
             -1,
         );
-        if (this.fadeVelocity < 0) {
-            this.fade = Math.max(0, this.fade + this.fadeVelocity * deltaTime);
+        if (this.hatVelocity < 0) {
+            this.hat = Math.max(0, this.hat + this.hatVelocity * deltaTime);
         }
     }
 }
