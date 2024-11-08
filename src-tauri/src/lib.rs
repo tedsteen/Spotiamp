@@ -120,7 +120,7 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
             .outer_size()
             .expect("a player windoow position")
             .height as i32;
-        playlist_window::build_window(
+        let playlist_window = playlist_window::build_window(
             &app_handle,
             zoom,
             playlist_position.to_logical(
@@ -130,6 +130,13 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
             ),
         )
         .expect("a playlist window to be created");
+        app_handle.listen("set-playlist-window-visibility", move |e| {
+            if e.payload() == "true" {
+                playlist_window.show().expect("Playlist window to show");
+            } else {
+                playlist_window.hide().expect("Playlist window to hide");
+            }
+        });
     });
 
     Ok(())

@@ -161,6 +161,10 @@
   });
 
   emit("player-window-ready");
+  let showPlaylist = $state(true);
+  $effect(() => {
+    emit("set-playlist-window-visibility", showPlaylist).catch(handleError);
+  });
 </script>
 
 <main>
@@ -171,7 +175,12 @@
     class="sprite stereo-mono-sprite"
     style="background-position: -29px -12px; --sprite-x: 212px; width: 27px"
   ></div>
-
+  <button
+    class="sprite playlist-btn"
+    class:playlist-btn-enabled={showPlaylist}
+    onclick={() => (showPlaylist = !showPlaylist)}
+    aria-label="Toggle playlist"
+  ></button>
   <div class="sprite playpause-sprite playpause-{playerState}"></div>
 
   <div
@@ -242,50 +251,50 @@
     }}
   />
 
-  <input
-    type="button"
+  <button
     class="sprite control-buttons-sprite"
     style:--button-x="calc(16px + (var(--button-width) * 0))"
     style:--button-y="88px"
     style:--button-idx="0"
     onclick={() => dispatchWindowChannelEvent("previous-track")}
-  />
-  <input
-    type="button"
+    aria-label="Previous"
+  ></button>
+  <button
     class="sprite control-buttons-sprite"
     style:--button-x="calc(16px + (var(--button-width) * 1))"
     style:--button-y="88px"
     style:--button-idx="1"
     onclick={play}
-  />
+    aria-label="Play"
+  ></button>
 
-  <input
-    type="button"
+  <button
     class="sprite control-buttons-sprite"
     style:--button-x="calc(16px + (var(--button-width) * 2))"
     style:--button-y="88px"
     style:--button-idx="2"
     onclick={pause}
-  />
+    aria-label="Pause"
+  ></button>
 
-  <input
-    type="button"
+  <button
     class="sprite control-buttons-sprite"
     style:--button-x="calc(16px + (var(--button-width) * 3))"
     style:--button-y="88px"
     style:--button-idx="3"
     onclick={stop}
-  />
+    aria-label="Stop"
+  ></button>
 
-  <input
-    type="button"
+  <button
     class="sprite control-buttons-sprite"
     style:--button-x="calc(16px + (var(--button-width) * 4))"
     style:--button-y="88px"
     style:--button-idx="4"
     style:width="22px"
     onclick={() => dispatchWindowChannelEvent("next-track")}
-  />
+    aria-label="Next"
+  ></button>
 
   <!-- <div
     class="sprite control-buttons-sprite"
@@ -300,6 +309,22 @@
 </main>
 
 <style>
+  button.playlist-btn {
+    --sprite-url: url(assets/skins/base-2.91/SHUFREP.BMP);
+    --sprite-x: 242px;
+    --sprite-y: 58px;
+    width: 23px;
+    height: 12px;
+    background-position: -23px -61px;
+  }
+  button.playlist-btn:active {
+    background-position-x: -69px;
+  }
+
+  button.playlist-btn-enabled {
+    background-position-y: -73px;
+  }
+
   .stereo-mono-sprite {
     --sprite-url: url(assets/skins/base-2.91/MONOSTER.BMP);
     --sprite-x: 239px;
@@ -469,14 +494,12 @@
     top: calc(var(--button-y) * var(--zoom));
   }
 
-  input[type="button"],
-  .control-buttons-sprite {
+  button.control-buttons-sprite {
     border: 0px;
     background-position: calc(var(--button-idx) * var(--button-width) * -1) 0px;
   }
 
-  input[type="button"]:active,
-  .control-buttons-sprite {
+  button.control-buttons-sprite:active {
     background-position: calc(var(--button-idx) * var(--button-width) * -1)
       calc(var(--button-height));
   }
