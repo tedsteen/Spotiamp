@@ -118,6 +118,7 @@
   }
 
   async function stop() {
+    seekPosition = sliderSeekPosition = 0;
     playerState = "stopped"; // To make the UI a bit snappier
     await invoke("stop").catch(handleError);
   }
@@ -166,11 +167,12 @@
 <main>
   <div class="sprite main-sprite"></div>
 
-  <div class="sprite stereo-mono-sprite"></div>
+  <div class="sprite stereo-mono-sprite stereo-mono-sprite-mono"></div>
   <div
-    class="sprite stereo-mono-sprite"
-    style="background-position: -29px -12px; --sprite-x: 212px; width: 27px"
+    class="sprite stereo-mono-sprite stereo-mono-sprite-stereo"
+    class:stereo-mono-sprite-enabled={playerState != "stopped"}
   ></div>
+
   <button
     class="sprite playlist-btn"
     class:playlist-btn-enabled={showPlaylist}
@@ -323,12 +325,26 @@
 
   .stereo-mono-sprite {
     --sprite-url: url(assets/skins/base-2.91/MONOSTER.BMP);
-    --sprite-x: 239px;
     --sprite-y: 41px;
-    width: 29px;
     height: 12px;
-    background-position: 0px 0px;
   }
+
+  .stereo-mono-sprite-mono {
+    --sprite-x: 212px;
+    width: 27px;
+    background-position: -29px -12px;
+  }
+
+  .stereo-mono-sprite-stereo {
+    --sprite-x: 239px;
+    width: 29px;
+    background-position: 0px -12px;
+  }
+
+  .stereo-mono-sprite-enabled {
+    background-position-y: 0px;
+  }
+
   /* ------ SEEK POSITION ------ */
   .seek-position-sprite {
     --sprite-url: url(assets/skins/base-2.91/POSBAR.BMP);
