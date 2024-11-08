@@ -37,7 +37,6 @@
 
     async load() {
       loadedRow = this;
-      //dispatchWindowChannelEvent("load-track", this.track);
       await invoke("load_track", { uri: this.track.uri }).catch(handleError);
     }
 
@@ -194,10 +193,6 @@
     element.onselectstart = () => false;
   }
 </script>
-
-<svelte:head>
-  <title>Playlist</title>
-</svelte:head>
 
 <span style:--playlist-w={size.width} style:--playlist-h={size.height}>
   <div class="tracks-container">

@@ -30,8 +30,6 @@
    */
   let uiInputState = $state("nothing");
   const currentTime = $derived(durationToMMSS(seekPosition));
-  const volumeYOffs = $derived(-Math.floor((volume / 100.0) * 27) * 15);
-  let tickerText = $state("Winamp 2.91");
 
   /**
    * @param {number} position_ms
@@ -95,7 +93,6 @@
    * @param {SpotifyTrack} track
    */
   async function loadTrack(track) {
-    tickerText = `${track.artist} - ${track.name} (${track.durationAsString})`;
     loadedTrack = track;
     if (playerState == "playing" || playerState == "paused") {
       await play();
@@ -176,11 +173,7 @@
   emit("player-window-ready");
 </script>
 
-<svelte:head>
-  <title>Player</title>
-</svelte:head>
-
-<main class="container">
+<main>
   <div class="sprite main-sprite"></div>
   <div class="sprite playpause-sprite playpause-{playerState}"></div>
 
@@ -190,7 +183,9 @@
     id="titlebar"
   ></div>
   <TextTicker
-    text={tickerText}
+    text={loadedTrack
+      ? `${loadedTrack.artist} - ${loadedTrack.name} (${loadedTrack.durationAsString})`
+      : "Winamp 2.91"}
     textOverride={tickerOverrideText}
     x="111"
     y="27"
@@ -227,7 +222,7 @@
   <input
     type="range"
     class="sprite volume-sprite"
-    style:background-position-y="{volumeYOffs}px"
+    style:--volume={volume}
     id="volume"
     min="0"
     max="100"
@@ -434,6 +429,9 @@
   #volume {
     appearance: none;
     cursor: url(assets/skins/base-2.91/VOLBAL.CUR), default;
+    background-position-y: calc(
+      round(down, var(--volume) / 100 * 27, 1) * -15px
+    );
   }
 
   #volume::-webkit-slider-thumb {
