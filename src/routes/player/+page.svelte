@@ -23,7 +23,7 @@
    */
   let loadedTrack = $state();
   let volume = $state(initialVolume);
-  let uiSeekPosition = $state(0);
+  let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
@@ -31,24 +31,17 @@
   let uiInputState = $state("nothing");
   const currentTime = $derived(durationToMMSS(seekPosition));
 
-  /**
-   * @param {number} position_ms
-   */
-  function setSeekPosition(position_ms) {
-    seekPosition = uiSeekPosition = position_ms;
-  }
-
   subscribeToPlayerEvents(({ payload }) => {
     //console.info("EVENT", payload);
     if (payload.TrackChanged) {
       let { track_uri, artist, name, duration } = payload.TrackChanged;
       const track = new SpotifyTrack(artist, name, duration, track_uri);
       loadTrack(track);
-      setSeekPosition(0);
+      seekPosition = 0;
     } else if (payload.Playing) {
       let { position_ms } = payload.Playing;
       playerState = "playing";
-      setSeekPosition(position_ms);
+      seekPosition = position_ms;
     } else if (payload.Paused) {
       let { position_ms } = payload.Paused;
       if (position_ms == 0) {
@@ -56,15 +49,15 @@
       } else {
         playerState = "paused";
       }
-      setSeekPosition(position_ms);
+      seekPosition = position_ms;
     } else if (payload.Stopped) {
       playerState = "stopped";
     } else if (payload.PositionCorrection) {
       let { position_ms } = payload.PositionCorrection;
-      setSeekPosition(position_ms);
+      seekPosition = position_ms;
     } else if (payload.Seeked) {
       let { position_ms } = payload.Seeked;
-      setSeekPosition(position_ms);
+      seekPosition = position_ms;
     }
   });
 
@@ -75,7 +68,7 @@
   let tickerOverrideText = $derived.by(() => {
     if (uiInputState == "seeking") {
       return loadedTrack
-        ? `SEEK TO: ${durationToString(uiSeekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((uiSeekPosition / loadedTrack.durationInMs) * 100)}%)`
+        ? `SEEK TO: ${durationToString(sliderSeekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((sliderSeekPosition / loadedTrack.durationInMs) * 100)}%)`
         : "NO TRACK LOADED";
     } else if (uiInputState == "volume-change") {
       return `VOLUME: ${volume}%`;
@@ -128,18 +121,15 @@
   }
 
   /**
-   *
    * @param {number} positionMs
    */
   async function seek(positionMs) {
-    if (loadedTrack) {
-      if (playerState != "stopped") {
-        await invoke("seek", {
-          positionMs,
-        }).catch(handleError);
-      }
-    }
+    seekPosition = sliderSeekPosition = positionMs; // To make the UI a bit snappier and to not glitch between new and old value
+    await invoke("seek", {
+      positionMs,
+    }).catch(handleError);
   }
+
   const visualizer = new Visualizer();
   $effect(() => {
     if (playerState == "stopped" || playerState == "paused") {
@@ -163,6 +153,12 @@
       seekPosition += 1000;
     }
   }, 1000);
+
+  $effect(() => {
+    if (uiInputState != "seeking") {
+      sliderSeekPosition = seekPosition;
+    }
+  });
 
   emit("player-window-ready");
 </script>
@@ -230,10 +226,12 @@
     id="seek-position"
     min="0"
     max={loadedTrack?.durationInMs}
-    bind:value={uiSeekPosition}
-    onchange={() => seek(uiSeekPosition)}
+    bind:value={sliderSeekPosition}
     onmousedown={() => (uiInputState = "seeking")}
-    onmouseup={() => (uiInputState = "nothing")}
+    onmouseup={() => {
+      seek(sliderSeekPosition);
+      uiInputState = "nothing";
+    }}
   />
 
   <input
