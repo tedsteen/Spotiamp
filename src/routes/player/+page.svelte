@@ -210,7 +210,7 @@
     <div
       class="visualizer-bar"
       style:--bar-idx={bar.index}
-      style:--height={bar.current}
+      style:--height={bar.value}
     ></div>
     <div
       class="visualizer-bar-hat"

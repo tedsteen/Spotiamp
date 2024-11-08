@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 class Bar {
-    current = $state(0);
+    value = $state(0);
     hat = $state(0);
     hatVelocity = 0;
     gravity = 0.000007;
@@ -13,7 +13,7 @@ class Bar {
     }
 
     reset() {
-        this.current = 0;
+        this.value = 0;
         this.hat = 0;
         this.hatVelocity = 0;
     }
@@ -22,7 +22,7 @@ class Bar {
      * @param {number} newValue
      */
     setValue(newValue) {
-        this.current = newValue;
+        this.value = newValue;
         if (this.hat <= newValue) {
             this.hat = newValue;
             this.hatVelocity = 0.005;
