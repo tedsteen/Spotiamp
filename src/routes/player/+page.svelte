@@ -164,9 +164,7 @@
     if (playerState == "paused") {
       numberDisplayHidden = !numberDisplayHidden;
     } else {
-      if (uiInputState != "seeking") {
-        setSeekPosition(seekPosition + 1000);
-      }
+      seekPosition += 1000;
     }
   }, 1000);
 
