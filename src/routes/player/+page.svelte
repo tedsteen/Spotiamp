@@ -111,8 +111,10 @@
   // });
 
   async function pause() {
-    playerState = "paused"; // To make the UI a bit snappier
-    await invoke("pause").catch(handleError);
+    if (playerState == "playing") {
+      playerState = "paused"; // To make the UI a bit snappier
+      await invoke("pause").catch(handleError);
+    }
   }
 
   async function stop() {
