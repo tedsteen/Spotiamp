@@ -52,7 +52,7 @@
     } else if (payload.Paused) {
       let { position_ms } = payload.Paused;
       if (position_ms == 0) {
-        playerState = "loaded";
+        playerState = "stopped";
       } else {
         playerState = "paused";
       }
@@ -85,7 +85,7 @@
   let numberDisplayHidden = $state(true);
 
   /**
-   * @type {"loaded" | "stopped" | "playing" | "paused"}
+   * @type {"stopped" | "playing" | "paused"}
    */
   let playerState = $state("stopped");
 
@@ -142,15 +142,11 @@
   }
   const visualizer = new Visualizer();
   $effect(() => {
-    if (
-      playerState == "stopped" ||
-      playerState == "loaded" ||
-      playerState == "paused"
-    ) {
+    if (playerState == "stopped" || playerState == "paused") {
       visualizer.stop();
     } else if (playerState == "playing") {
       visualizer.start().then(() => {
-        if (playerState == "stopped" || playerState == "loaded") {
+        if (playerState == "stopped") {
           for (const bar of visualizer.bars) {
             bar.reset();
           }
@@ -190,7 +186,6 @@
   />
   <div
     class:hidden={playerState == "stopped" ||
-      playerState == "loaded" ||
       (playerState == "paused" && numberDisplayHidden)}
   >
     <NumberDisplay
@@ -231,7 +226,7 @@
   <input
     type="range"
     class="sprite seek-position-sprite"
-    class:hidden={playerState == "stopped" || playerState == "loaded"}
+    class:hidden={playerState == "stopped"}
     id="seek-position"
     min="0"
     max={loadedTrack?.durationInMs}
