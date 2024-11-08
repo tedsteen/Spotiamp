@@ -165,6 +165,13 @@
 
 <main>
   <div class="sprite main-sprite"></div>
+
+  <div class="sprite stereo-mono-sprite"></div>
+  <div
+    class="sprite stereo-mono-sprite"
+    style="background-position: -29px -12px; --sprite-x: 212px; width: 27px"
+  ></div>
+
   <div class="sprite playpause-sprite playpause-{playerState}"></div>
 
   <div
@@ -226,6 +233,7 @@
     id="seek-position"
     min="0"
     max={loadedTrack?.durationInMs}
+    step="1000"
     bind:value={sliderSeekPosition}
     onmousedown={() => (uiInputState = "seeking")}
     onmouseup={() => {
@@ -292,6 +300,14 @@
 </main>
 
 <style>
+  .stereo-mono-sprite {
+    --sprite-url: url(assets/skins/base-2.91/MONOSTER.BMP);
+    --sprite-x: 239px;
+    --sprite-y: 41px;
+    width: 29px;
+    height: 12px;
+    background-position: 0px 0px;
+  }
   /* ------ SEEK POSITION ------ */
   .seek-position-sprite {
     --sprite-url: url(assets/skins/base-2.91/POSBAR.BMP);
