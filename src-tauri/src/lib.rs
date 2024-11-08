@@ -34,7 +34,7 @@ enum StartError {
 }
 
 #[derive(Clone, Serialize)]
-enum PlayerEvent1 {
+enum SpotiampPlayerEvent {
     Stopped { id: u128 },
     Paused { id: u128, position_ms: u32 },
     EndOfTrack { id: u128 },
@@ -66,29 +66,29 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
                     track_id,
                     position_ms,
                     ..
-                } => Some(PlayerEvent1::Playing {
+                } => Some(SpotiampPlayerEvent::Playing {
                     id: track_id.id,
                     position_ms,
                 }),
                 PlayerEvent::Stopped { track_id, .. } => {
-                    Some(PlayerEvent1::Stopped { id: track_id.id })
+                    Some(SpotiampPlayerEvent::Stopped { id: track_id.id })
                 }
                 PlayerEvent::Paused {
                     track_id,
                     position_ms,
                     ..
-                } => Some(PlayerEvent1::Paused {
+                } => Some(SpotiampPlayerEvent::Paused {
                     id: track_id.id,
                     position_ms,
                 }),
                 PlayerEvent::EndOfTrack { track_id, .. } => {
-                    Some(PlayerEvent1::EndOfTrack { id: track_id.id })
+                    Some(SpotiampPlayerEvent::EndOfTrack { id: track_id.id })
                 }
                 PlayerEvent::PositionCorrection {
                     track_id,
                     position_ms,
                     ..
-                } => Some(PlayerEvent1::PositionCorrection {
+                } => Some(SpotiampPlayerEvent::PositionCorrection {
                     id: track_id.id,
                     position_ms,
                 }),
@@ -96,13 +96,13 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
                     track_id,
                     position_ms,
                     ..
-                } => Some(PlayerEvent1::Seeked {
+                } => Some(SpotiampPlayerEvent::Seeked {
                     id: track_id.id,
                     position_ms,
                 }),
-                PlayerEvent::TrackChanged { audio_item } => {
-                    Some(PlayerEvent1::TrackChanged(TrackData::from(*audio_item)))
-                }
+                PlayerEvent::TrackChanged { audio_item } => Some(
+                    SpotiampPlayerEvent::TrackChanged(TrackData::from(*audio_item)),
+                ),
                 _ => None,
             } {
                 let _ = player_window_ref.emit("player", player_event);
