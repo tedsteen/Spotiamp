@@ -4,7 +4,8 @@ class Bar {
     value = $state(0);
     hat = $state(0);
     hatVelocity = 0;
-    gravity = 0.000007;
+    gravity = 0.000005;
+    levitateTimeMs = 450;
     /**
      * @param {number} index
      */
@@ -25,7 +26,7 @@ class Bar {
         this.value = newValue;
         if (this.hat <= newValue) {
             this.hat = newValue;
-            this.hatVelocity = 0.005;
+            this.hatVelocity = this.gravity * this.levitateTimeMs;
         }
     }
 
