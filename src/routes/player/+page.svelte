@@ -133,15 +133,9 @@
   const visualizer = new Visualizer();
   $effect(() => {
     if (playerState == "stopped" || playerState == "paused") {
-      visualizer.stop();
+      visualizer.stop(playerState == "stopped");
     } else if (playerState == "playing") {
-      visualizer.start().then(() => {
-        if (playerState == "stopped") {
-          for (const bar of visualizer.bars) {
-            bar.reset();
-          }
-        }
-      });
+      visualizer.start();
     }
   });
 

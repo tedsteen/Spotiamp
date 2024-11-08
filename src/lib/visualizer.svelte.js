@@ -65,6 +65,7 @@ export class Visualizer {
         new Bar(17),
         new Bar(18),
     ]);
+    clearAfterStop = false;
 
     constructor() {
         this.running = false;
@@ -95,8 +96,26 @@ export class Visualizer {
                 console.error("Failed to fetch visualizer data", e);
             }
         }
+        if (this.clearAfterStop) {
+            this.clear();
+        }
     }
-    stop() {
-        this.running = false;
+
+    clear() {
+        for (const bar of this.bars) {
+            bar.reset();
+        }
+    }
+
+    /**
+     * @param {boolean} clearAfterStop
+     */
+    stop(clearAfterStop) {
+        if (!this.running && clearAfterStop) {
+            this.clear();
+        } else {
+            this.running = false;
+            this.clearAfterStop = clearAfterStop;
+        }
     }
 }
