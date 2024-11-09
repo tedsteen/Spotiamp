@@ -6,6 +6,8 @@
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { dispatchWindowChannelEvent } from "$lib/windowChannel";
+  import { onMount } from "svelte";
+
   // TODO: only export the SpotifyTrack type somehow
   import {
     durationToMMSS,
@@ -25,47 +27,19 @@
   let volume = $state(initialVolume);
   let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
+  let showPlaylist = $state(true);
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */
   let uiInputState = $state("nothing");
+  /**
+   * @type {"stopped" | "playing" | "paused"}
+   */
+  let playerState = $state("stopped");
+  let numberDisplayHidden = $state(true);
+
   const currentTime = $derived(durationToMMSS(seekPosition));
-
-  subscribeToPlayerEvents(({ payload }) => {
-    //console.info("EVENT", payload);
-    if (payload.TrackChanged) {
-      let { track_uri, artist, name, duration } = payload.TrackChanged;
-      const track = new SpotifyTrack(artist, name, duration, track_uri);
-      loadTrack(track);
-      seekPosition = 0;
-    } else if (payload.Playing) {
-      let { position_ms } = payload.Playing;
-      playerState = "playing";
-      seekPosition = position_ms;
-    } else if (payload.Paused) {
-      let { position_ms } = payload.Paused;
-      if (position_ms == 0) {
-        playerState = "stopped";
-      } else {
-        playerState = "paused";
-      }
-      seekPosition = position_ms;
-    } else if (payload.Stopped) {
-      playerState = "stopped";
-    } else if (payload.PositionCorrection) {
-      let { position_ms } = payload.PositionCorrection;
-      seekPosition = position_ms;
-    } else if (payload.Seeked) {
-      let { position_ms } = payload.Seeked;
-      seekPosition = position_ms;
-    }
-  });
-
-  $effect(() => {
-    emit("volume-change", volume);
-  });
-
-  let tickerOverrideText = $derived.by(() => {
+  const tickerOverrideText = $derived.by(() => {
     if (uiInputState == "seeking") {
       return loadedTrack
         ? `SEEK TO: ${durationToString(sliderSeekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((sliderSeekPosition / loadedTrack.durationInMs) * 100)}%)`
@@ -74,13 +48,6 @@
       return `VOLUME: ${volume}%`;
     }
   });
-
-  let numberDisplayHidden = $state(true);
-
-  /**
-   * @type {"stopped" | "playing" | "paused"}
-   */
-  let playerState = $state("stopped");
 
   /**
    * @param {SpotifyTrack} track
@@ -102,13 +69,6 @@
 
     await invoke("play").catch(handleError);
   }
-
-  // handleDrop((url) => {
-  //   //TODO: Replace all in playlist with the dropped link
-  //   spotifyUrlToTrack(url).then((track) => {
-  //     loadAndPlay(track);
-  //   });
-  // });
 
   async function pause() {
     if (playerState == "playing") {
@@ -142,14 +102,9 @@
     }
   });
 
-  // Tick seek position and blink number display
-  setInterval(() => {
-    if (playerState == "paused") {
-      numberDisplayHidden = !numberDisplayHidden;
-    } else {
-      seekPosition += 1000;
-    }
-  }, 1000);
+  $effect(() => {
+    emit("volume-change", volume);
+  });
 
   $effect(() => {
     if (uiInputState != "seeking") {
@@ -157,10 +112,63 @@
     }
   });
 
-  emit("player-window-ready");
-  let showPlaylist = $state(true);
   $effect(() => {
     emit("set-playlist-window-visibility", showPlaylist).catch(handleError);
+  });
+
+  // handleDrop((url) => {
+  //   //TODO: Replace all in playlist with the dropped link
+  //   spotifyUrlToTrack(url).then((track) => {
+  //     loadAndPlay(track);
+  //   });
+  // });
+
+  onMount(() => {
+    // Tick seek position and blink number display
+    const tickerInterval = setInterval(() => {
+      if (playerState == "paused") {
+        numberDisplayHidden = !numberDisplayHidden;
+      } else {
+        seekPosition += 1000;
+      }
+    }, 1000);
+
+    const playerEventsSubscription = subscribeToPlayerEvents(({ payload }) => {
+      if (payload.TrackChanged) {
+        let { track_uri, artist, name, duration } = payload.TrackChanged;
+        const track = new SpotifyTrack(artist, name, duration, track_uri);
+        loadTrack(track);
+        seekPosition = 0;
+      } else if (payload.Playing) {
+        let { position_ms } = payload.Playing;
+        playerState = "playing";
+        seekPosition = position_ms;
+      } else if (payload.Paused) {
+        let { position_ms } = payload.Paused;
+        if (position_ms == 0) {
+          playerState = "stopped";
+        } else {
+          playerState = "paused";
+        }
+        seekPosition = position_ms;
+      } else if (payload.Stopped) {
+        playerState = "stopped";
+      } else if (payload.PositionCorrection) {
+        let { position_ms } = payload.PositionCorrection;
+        seekPosition = position_ms;
+      } else if (payload.Seeked) {
+        let { position_ms } = payload.Seeked;
+        seekPosition = position_ms;
+      }
+    });
+
+    emit("player-window-ready");
+
+    // Cleanups
+    return () => {
+      clearInterval(tickerInterval);
+      playerEventsSubscription.then((unsubscribe) => unsubscribe());
+    };
   });
 </script>
 

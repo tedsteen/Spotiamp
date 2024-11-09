@@ -104,6 +104,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 /**
  * @param {playerEventCallback} callback 
  */
-export function subscribeToPlayerEvents(callback) {
-    getCurrentWindow().listen("player", callback);
+export async function subscribeToPlayerEvents(callback) {
+    return await getCurrentWindow().listen("player", callback);
 }
