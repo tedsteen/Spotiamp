@@ -22,11 +22,12 @@
    * @type {PlaylistRow[]}
    */
   let rows = $state([]);
-
   /**
    * @type {PlaylistRow[]}
    */
   let selectedRows = $state([]);
+  let playlistWidth = $state(Math.ceil(window.innerWidth / ZOOM / 25));
+  let playlistHeight = $state(Math.ceil(window.innerHeight / ZOOM / 29));
 
   class PlaylistRow {
     /**
@@ -56,23 +57,6 @@
     }
   }
 
-  document.addEventListener("keydown", (e) => {
-    const selectedRow = selectedRows[0];
-    if (selectedRow) {
-      let nextRow;
-      if (e.key == "ArrowDown") {
-        const currRowIndex = rows.indexOf(selectedRow);
-        nextRow = rows[currRowIndex + 1];
-      } else if (e.key == "ArrowUp") {
-        const currRowIndex = rows.indexOf(selectedRow);
-        nextRow = rows[currRowIndex - 1];
-      }
-      if (nextRow) {
-        selectedRows = [nextRow];
-      }
-    }
-  });
-
   /**
    * @param {SpotifyTrack} track
    */
@@ -83,12 +67,6 @@
       row.load();
     }
   }
-
-  handleDrop((url) => {
-    spotifyUrlToTrack(url).then((track) => {
-      addTrack(track);
-    });
-  });
 
   function playNext() {
     const currRowIndex = rows.indexOf(loadedRow);
@@ -144,6 +122,13 @@
     ).then((track) => {
       addTrack(track);
     });
+
+    const cleanupDropHandler = handleDrop((url) => {
+      spotifyUrlToTrack(url).then((track) => {
+        addTrack(track);
+      });
+    });
+
     const playerWindowSubscription = subscribeToWindowEvent(
       "playerWindow",
       (event) => {
@@ -166,19 +151,36 @@
       }
     });
 
+    /**
+     * @param {DocumentEventMap["keydown"]} e
+     */
+    function playlistKeyDownListener(e) {
+      const selectedRow = selectedRows[0];
+      if (selectedRow) {
+        let nextRow;
+        if (e.key == "ArrowDown") {
+          const currRowIndex = rows.indexOf(selectedRow);
+          nextRow = rows[currRowIndex + 1];
+        } else if (e.key == "ArrowUp") {
+          const currRowIndex = rows.indexOf(selectedRow);
+          nextRow = rows[currRowIndex - 1];
+        }
+        if (nextRow) {
+          selectedRows = [nextRow];
+        }
+      }
+    }
+    document.addEventListener("keydown", playlistKeyDownListener);
+
     emitWindowEvent("playlistWindow", { Ready: null });
     // Cleanups
     return () => {
       playerWindowSubscription.then((unlisten) => unlisten());
       playerSubscription.then((unlisten) => unlisten());
+      document.removeEventListener("keydown", playlistKeyDownListener);
+      cleanupDropHandler();
     };
   });
-
-  class Size {
-    width = $state(Math.ceil(window.innerWidth / ZOOM / 25));
-    height = $state(Math.ceil(window.innerHeight / ZOOM / 29));
-  }
-  const size = new Size();
 
   /**
    * @param {HTMLElement} element
@@ -189,8 +191,8 @@
         const pointerX = Math.max(Math.ceil(event.clientX / ZOOM / 25), 11);
         const pointerY = Math.max(Math.ceil(event.clientY / ZOOM / 29), 4);
         const w = getCurrentWindow();
-        size.width = pointerX;
-        size.height = pointerY;
+        playlistWidth = pointerX;
+        playlistHeight = pointerY;
 
         w.setSize(new LogicalSize(pointerX * 25 * ZOOM, pointerY * 29 * ZOOM));
       };
@@ -208,7 +210,7 @@
   }
 </script>
 
-<span style:--playlist-w={size.width} style:--playlist-h={size.height}>
+<span style:--playlist-w={playlistWidth} style:--playlist-h={playlistHeight}>
   <div class="tracks-container">
     <table id="playlist-tracks">
       <tbody>
@@ -239,30 +241,30 @@
 
   <div
     class="sprite playlist-sprite playlist-tr-sprite"
-    style:--x={size.width}
+    style:--x={playlistWidth}
   ></div>
 
   <!-- Left/Right -->
-  {#each range(1, size.height - 2) as y}
+  {#each range(1, playlistHeight - 2) as y}
     <div class="sprite playlist-sprite playlist-l-sprite" style:--y={y}></div>
     <div
       class="sprite playlist-sprite playlist-r-sprite"
       style:--y={y}
-      style:--x={size.width}
+      style:--x={playlistWidth}
     ></div>
   {/each}
 
   <!-- Top/Bottom -->
-  {#each range(1, size.width - 2) as x}
+  {#each range(1, playlistWidth - 2) as x}
     <div
       data-tauri-drag-region
       class="sprite playlist-sprite playlist-t-sprite"
       style:--x={x}
     ></div>
-    {#if x >= 5 && x < size.width - 6}
+    {#if x >= 5 && x < playlistWidth - 6}
       <div
         class="sprite playlist-sprite playlist-b-sprite"
-        style:--y={size.height - 1}
+        style:--y={playlistHeight - 1}
         style:--x={x}
       ></div>
     {/if}
@@ -272,19 +274,19 @@
   <div
     data-tauri-drag-region
     class="sprite playlist-sprite playlist-title-sprite"
-    style:--x={size.width / 2 - 2}
+    style:--x={playlistWidth / 2 - 2}
   ></div>
 
   <!-- Bottom corners -->
   <div
     class="sprite playlist-sprite playlist-bl-sprite"
-    style:--y={size.height}
+    style:--y={playlistHeight}
   ></div>
 
   <div
     class="sprite playlist-sprite playlist-br-sprite"
-    style:--y={size.height - 1}
-    style:--x={size.width - 9}
+    style:--y={playlistHeight - 1}
+    style:--x={playlistWidth - 9}
   ></div>
 
   <div class="draggable-corner" use:makeDraggable></div>

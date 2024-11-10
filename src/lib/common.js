@@ -45,14 +45,17 @@ function preventAndStopPropagation(ev) {
 
 /**
  * @param {urlCallback} urlCallback 
+ * @returns {() => void} unlisten
  */
 export function handleDrop(urlCallback) {
     window.addEventListener("dragenter", preventAndStopPropagation);
     window.addEventListener("dragover", preventAndStopPropagation);
     window.addEventListener("drop", preventAndStopPropagation);
 
-    document.addEventListener("drop", (ev) => {
-
+    /**
+     * @param {DocumentEventMap["drop"]} ev 
+     */
+    function documentDropListener(ev) {
         if (ev.dataTransfer) {
             for (const item of ev.dataTransfer.items) {
                 if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
@@ -62,7 +65,15 @@ export function handleDrop(urlCallback) {
                 }
             }
         }
-    });
+
+    }
+    document.addEventListener("drop", documentDropListener);
+    return () => {
+        document.removeEventListener("drop", documentDropListener);
+        window.removeEventListener("dragenter", preventAndStopPropagation);
+        window.removeEventListener("dragover", preventAndStopPropagation);
+        window.removeEventListener("drop", preventAndStopPropagation);
+    }
 }
 
 const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
@@ -95,7 +106,6 @@ async function getTrack(uri) {
 export async function spotifyUrlToTrack(url) {
     return await getTrack(spotifyUrlToUri(url))
 }
-
 
 /**
  * @typedef { {playlistWindow: {event: {Ready: null}}, playerWindow: {event: {Ready: null, ChangeVolume: number, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {track_id: number, track_uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
