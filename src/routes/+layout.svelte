@@ -11,7 +11,7 @@
         margin: 0;
         border: 0;
         image-rendering: pixelated;
-        cursor: url(assets/skins/base-2.91/MAINMENU.CUR), auto;
+        cursor: url(/src/static/assets/skins/base-2.91/MAINMENU.CUR), auto;
     }
 
     /* Disable scrolling */

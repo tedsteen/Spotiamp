@@ -34,7 +34,7 @@
     }
 
     .digit-sprite {
-        --sprite-url: url(assets/skins/base-2.91/NUMBERS.BMP);
+        --sprite-url: url(/src/static/assets/skins/base-2.91/NUMBERS.BMP);
         width: 9px;
         height: 13px;
         left: calc(var(--x) * var(--zoom) * 12px);

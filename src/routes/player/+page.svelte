@@ -322,7 +322,7 @@
 
 <style>
   button.playlist-btn {
-    --sprite-url: url(assets/skins/base-2.91/SHUFREP.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/SHUFREP.BMP);
     --sprite-x: 242px;
     --sprite-y: 58px;
     width: 23px;
@@ -338,7 +338,7 @@
   }
 
   .stereo-mono-sprite {
-    --sprite-url: url(assets/skins/base-2.91/MONOSTER.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/MONOSTER.BMP);
     --sprite-y: 41px;
     height: 12px;
   }
@@ -361,7 +361,7 @@
 
   /* ------ SEEK POSITION ------ */
   .seek-position-sprite {
-    --sprite-url: url(assets/skins/base-2.91/POSBAR.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/POSBAR.BMP);
     --sprite-x: 16px;
     --sprite-y: 72px;
     width: 249px;
@@ -371,11 +371,11 @@
 
   #seek-position {
     appearance: none;
-    cursor: url(assets/skins/base-2.91/VOLBAL.CUR), default;
+    cursor: url(/src/static/assets/skins/base-2.91/VOLBAL.CUR), default;
   }
 
   #seek-position::-webkit-slider-thumb {
-    background: url(assets/skins/base-2.91/POSBAR.BMP);
+    background: url(/src/static/assets/skins/base-2.91/POSBAR.BMP);
     appearance: none;
     width: 28px;
     height: 11px;
@@ -435,18 +435,18 @@
 
   /* ------ TITLEBAR ------ */
   .titlebar-sprite {
-    --sprite-url: url(assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
     width: 275px;
     height: 14px;
     background-position: -27px 0px;
-    cursor: url(assets/skins/base-2.91/TITLEBAR.CUR), default;
+    cursor: url(/src/static/assets/skins/base-2.91/TITLEBAR.CUR), default;
   }
 
   /* ------ /TITLEBAR ------ */
 
   /* ------ MAIN ------ */
   .main-sprite {
-    --sprite-url: url(assets/skins/base-2.91/MAIN.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/MAIN.BMP);
     width: 275px;
     height: 116px;
     background-position: 0px 0px;
@@ -456,7 +456,7 @@
 
   /* ------ PLAYPAUSE ------ */
   .playpause-sprite {
-    --sprite-url: url(assets/skins/base-2.91/PLAYPAUS.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/PLAYPAUS.BMP);
     width: 9px;
     height: 9px;
     --sprite-x: 26px;
@@ -476,7 +476,7 @@
 
   /* ------ VOLUME ------ */
   .volume-sprite {
-    --sprite-url: url(assets/skins/base-2.91/VOLUME.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/VOLUME.BMP);
     --sprite-x: 107px;
     --sprite-y: 57px;
     width: 65px;
@@ -486,14 +486,14 @@
 
   #volume {
     appearance: none;
-    cursor: url(assets/skins/base-2.91/VOLBAL.CUR), default;
+    cursor: url(/src/static/assets/skins/base-2.91/VOLBAL.CUR), default;
     background-position-y: calc(
       round(down, var(--volume) / 100 * 27, 1) * -15px
     );
   }
 
   #volume::-webkit-slider-thumb {
-    background: url(assets/skins/base-2.91/VOLUME.BMP);
+    background: url(/src/static/assets/skins/base-2.91/VOLUME.BMP);
     appearance: none;
     width: 14px;
     height: 11px;
@@ -509,7 +509,7 @@
 
   /* ------ CBUTTONS ------ */
   .control-buttons-sprite {
-    --sprite-url: url(assets/skins/base-2.91/CBUTTONS.BMP);
+    --sprite-url: url(/src/static/assets/skins/base-2.91/CBUTTONS.BMP);
     --button-width: 23px;
     --button-height: 18px;
     --button-state: 0;
