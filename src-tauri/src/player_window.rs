@@ -3,7 +3,7 @@ use librespot::{
     metadata::{audio::AudioItem, Track},
 };
 use serde::Serialize;
-use tauri::{AppHandle, WebviewWindow};
+use tauri::{AppHandle, Manager, WebviewWindow};
 
 use crate::player;
 
@@ -65,8 +65,13 @@ impl From<AudioItem> for TrackData {
 
 #[tauri::command]
 pub async fn get_volume() -> Result<u16, ()> {
-    let spotify_player = &mut player().lock().await;
-    Ok(spotify_player.get_volume())
+    Ok(player().lock().await.get_volume())
+}
+
+#[tauri::command]
+pub async fn set_volume(volume: u16) -> Result<(), ()> {
+    player().lock().await.set_volume(volume);
+    Ok(())
 }
 
 #[tauri::command]
@@ -139,6 +144,19 @@ pub async fn seek(position_ms: u32) -> Result<(), String> {
     spotify_player.seek(position_ms);
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn set_playlist_window_visible(visible: bool, app: AppHandle) {
+    if let Some(playlist_window) = app.get_webview_window("playlist") {
+        if visible {
+            playlist_window.show().expect("Playlist window to show");
+        } else {
+            playlist_window.hide().expect("Playlist window to hide");
+        }
+    } else {
+        log::error!("Could not get hold of the playlist window");
+    }
 }
 
 pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, tauri::Error> {

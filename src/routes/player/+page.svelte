@@ -1,11 +1,13 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
-  import { emit } from "@tauri-apps/api/event";
 
-  import { handleError, subscribeToPlayerEvents } from "$lib/common.js";
+  import {
+    emitWindowEvent,
+    handleError,
+    subscribeToWindowEvent,
+  } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
-  import { dispatchWindowChannelEvent } from "$lib/windowChannel";
   import { onMount } from "svelte";
 
   // TODO: only export the SpotifyTrack type somehow
@@ -103,7 +105,7 @@
   });
 
   $effect(() => {
-    emit("volume-change", volume);
+    invoke("set_volume", { volume });
   });
 
   $effect(() => {
@@ -113,7 +115,9 @@
   });
 
   $effect(() => {
-    emit("set-playlist-window-visibility", showPlaylist).catch(handleError);
+    invoke("set_playlist_window_visible", {
+      visible: showPlaylist,
+    }).catch(handleError);
   });
 
   // handleDrop((url) => {
@@ -133,41 +137,43 @@
       }
     }, 1000);
 
-    const playerEventsSubscription = subscribeToPlayerEvents(({ payload }) => {
-      if (payload.TrackChanged) {
-        let { track_uri, artist, name, duration } = payload.TrackChanged;
-        const track = new SpotifyTrack(artist, name, duration, track_uri);
-        loadTrack(track);
-        seekPosition = 0;
-      } else if (payload.Playing) {
-        let { position_ms } = payload.Playing;
-        playerState = "playing";
-        seekPosition = position_ms;
-      } else if (payload.Paused) {
-        let { position_ms } = payload.Paused;
-        if (position_ms == 0) {
+    const playerEventsSubscription = subscribeToWindowEvent(
+      "player",
+      (event) => {
+        if (event.TrackChanged) {
+          let { track_uri, artist, name, duration } = event.TrackChanged;
+          const track = new SpotifyTrack(artist, name, duration, track_uri);
+          loadTrack(track);
+          seekPosition = 0;
+        } else if (event.Playing) {
+          let { position_ms } = event.Playing;
+          playerState = "playing";
+          seekPosition = position_ms;
+        } else if (event.Paused) {
+          let { position_ms } = event.Paused;
+          if (position_ms == 0) {
+            playerState = "stopped";
+          } else {
+            playerState = "paused";
+          }
+          seekPosition = position_ms;
+        } else if (event.Stopped) {
           playerState = "stopped";
-        } else {
-          playerState = "paused";
+        } else if (event.PositionCorrection) {
+          let { position_ms } = event.PositionCorrection;
+          seekPosition = position_ms;
+        } else if (event.Seeked) {
+          let { position_ms } = event.Seeked;
+          seekPosition = position_ms;
         }
-        seekPosition = position_ms;
-      } else if (payload.Stopped) {
-        playerState = "stopped";
-      } else if (payload.PositionCorrection) {
-        let { position_ms } = payload.PositionCorrection;
-        seekPosition = position_ms;
-      } else if (payload.Seeked) {
-        let { position_ms } = payload.Seeked;
-        seekPosition = position_ms;
-      }
-    });
+      },
+    );
 
-    emit("player-window-ready");
+    emitWindowEvent("playerWindow", { Ready: null });
 
-    // Cleanups
     return () => {
       clearInterval(tickerInterval);
-      playerEventsSubscription.then((unsubscribe) => unsubscribe());
+      playerEventsSubscription.then((unlisten) => unlisten());
     };
   });
 </script>
@@ -262,7 +268,7 @@
     style:--button-x="calc(16px + (var(--button-width) * 0))"
     style:--button-y="88px"
     style:--button-idx="0"
-    onclick={() => dispatchWindowChannelEvent("previous-track")}
+    onclick={() => emitWindowEvent("playerWindow", { PreviousPressed: null })}
     aria-label="Previous"
   ></button>
   <button
@@ -298,7 +304,7 @@
     style:--button-y="88px"
     style:--button-idx="4"
     style:width="22px"
-    onclick={() => dispatchWindowChannelEvent("next-track")}
+    onclick={() => emitWindowEvent("playerWindow", { NextPressed: null })}
     aria-label="Next"
   ></button>
 

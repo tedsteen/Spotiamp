@@ -6,12 +6,13 @@
     range,
     handleDrop,
     handleError,
-    subscribeToPlayerEvents,
+    subscribeToWindowEvent,
+    emitWindowEvent,
   } from "$lib/common.js";
-  import { subscribeToWindowChannelEvent } from "$lib/windowChannel";
   // TODO: only import the type somehow
   import { SpotifyTrack } from "$lib/spotifyTrack";
   import { invoke } from "@tauri-apps/api/core";
+  import { onMount } from "svelte";
 
   const ZOOM = 1;
   setZoom(ZOOM);
@@ -101,63 +102,76 @@
     }
   }
 
-  subscribeToWindowChannelEvent("next-track", playNext);
+  onMount(() => {
+    spotifyUrlToTrack(
+      "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
+    ).then((track) => {
+      addTrack(track);
+    });
 
-  subscribeToWindowChannelEvent("previous-track", () => {
-    const currRowIndex = rows.indexOf(loadedRow);
-    const previousRow = rows[currRowIndex - 1];
-    console.info("previous-track", currRowIndex, previousRow);
-    previousRow?.load();
-  });
+    spotifyUrlToTrack(
+      "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
+    ).then((track) => {
+      addTrack(track);
+    });
 
-  subscribeToPlayerEvents(({ payload }) => {
-    if (payload.EndOfTrack) {
-      if (!playNext()) {
-        invoke("stop").catch(handleError);
+    spotifyUrlToTrack(
+      "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
+    ).then((track) => {
+      addTrack(track);
+    });
+
+    spotifyUrlToTrack(
+      "https://open.spotify.com/track/2iP0WoxusUtDpnNEgewVD8",
+    ).then((track) => {
+      addTrack(track);
+    });
+
+    spotifyUrlToTrack(
+      "https://open.spotify.com/track/6zTO0Y58ZBd1ZMjH0EIX1X",
+    ).then((track) => {
+      addTrack(track);
+    });
+
+    spotifyUrlToTrack(
+      "https://open.spotify.com/track/72oaFIAqlK7N7a8cyHZZ3i",
+    ).then((track) => {
+      addTrack(track);
+    });
+
+    spotifyUrlToTrack(
+      "https://open.spotify.com/track/6qnoOnDK3embwtU89Fz5XN",
+    ).then((track) => {
+      addTrack(track);
+    });
+    const playerWindowSubscription = subscribeToWindowEvent(
+      "playerWindow",
+      (event) => {
+        if (event.NextPressed !== undefined) {
+          playNext();
+        } else if (event.PreviousPressed !== undefined) {
+          const currRowIndex = rows.indexOf(loadedRow);
+          const previousRow = rows[currRowIndex - 1];
+          console.info("previous-track", currRowIndex, previousRow);
+          previousRow?.load();
+        }
+      },
+    );
+
+    const playerSubscription = subscribeToWindowEvent("player", (event) => {
+      if (event.EndOfTrack) {
+        if (!playNext()) {
+          invoke("stop").catch(handleError);
+        }
       }
-    }
-  });
+    });
 
-  spotifyUrlToTrack(
-    "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
-  ).then((track) => {
-    addTrack(track);
-  });
-
-  spotifyUrlToTrack(
-    "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
-  ).then((track) => {
-    addTrack(track);
-  });
-
-  spotifyUrlToTrack(
-    "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
-  ).then((track) => {
-    addTrack(track);
-  });
-
-  spotifyUrlToTrack(
-    "https://open.spotify.com/track/2iP0WoxusUtDpnNEgewVD8",
-  ).then((track) => {
-    addTrack(track);
-  });
-
-  spotifyUrlToTrack(
-    "https://open.spotify.com/track/6zTO0Y58ZBd1ZMjH0EIX1X",
-  ).then((track) => {
-    addTrack(track);
-  });
-
-  spotifyUrlToTrack(
-    "https://open.spotify.com/track/72oaFIAqlK7N7a8cyHZZ3i",
-  ).then((track) => {
-    addTrack(track);
-  });
-
-  spotifyUrlToTrack(
-    "https://open.spotify.com/track/6qnoOnDK3embwtU89Fz5XN",
-  ).then((track) => {
-    addTrack(track);
+    emitWindowEvent("playlistWindow", { Ready: null });
+    // Cleanups
+    return () => {
+      playerWindowSubscription.then((unlisten) => unlisten());
+      playerSubscription.then((unlisten) => unlisten());
+    };
   });
 
   class Size {

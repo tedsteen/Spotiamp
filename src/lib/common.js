@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { message } from '@tauri-apps/plugin-dialog';
 import { SpotifyTrack } from './spotifyTrack';
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { emit, } from "@tauri-apps/api/event";
 
 export const ORIGINAL_ZOOM = window.innerWidth / 275.0;
 
@@ -94,16 +96,27 @@ export async function spotifyUrlToTrack(url) {
     return await getTrack(spotifyUrlToUri(url))
 }
 
-/**
- * @callback playerEventCallback
- * @param { { payload: { 'TrackChanged': {track_id: number, track_uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} event
- */
-
-import { getCurrentWindow } from "@tauri-apps/api/window";
 
 /**
- * @param {playerEventCallback} callback 
+ * @typedef { {playlistWindow: {event: {Ready: null}}, playerWindow: {event: {Ready: null, ChangeVolume: number, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {track_id: number, track_uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
  */
-export async function subscribeToPlayerEvents(callback) {
-    return await getCurrentWindow().listen("player", callback);
+
+/**
+ * @template {keyof WindowEventTypes} T
+ * @template {keyof WindowEventTypes[T]["event"]} T2
+ * @param {T} key
+ * @param {{[P in T2]: WindowEventTypes[T]["event"][P]}} event
+ */
+export async function emitWindowEvent(key, event) {
+    await emit(key, event)
+}
+
+const CURRENT_WINDOW = getCurrentWindow();
+/**
+ * @template {keyof WindowEventTypes} T
+ * @param {T} key
+ * @param {(event: WindowEventTypes[T]["event"]) => void} callback 
+ */
+export async function subscribeToWindowEvent(key, callback) {
+    return await CURRENT_WINDOW.listen(key, (event) => { callback(event.payload) });
 }

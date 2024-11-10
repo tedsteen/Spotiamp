@@ -16,6 +16,5 @@ pub fn build_window(
         .position(position.x, position.y)
         .disable_drag_drop_handler()
         .accept_first_mouse(true)
-        .visible(false)
         .build()
 }

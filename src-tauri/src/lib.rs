@@ -2,9 +2,9 @@ use std::sync::OnceLock;
 
 use librespot::playback::player::PlayerEvent;
 use player_window::TrackData;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use spotify::{SessionError, SpotifyPlayer};
-use tauri::{async_runtime::spawn, AppHandle, Emitter, Listener};
+use tauri::{AppHandle, Emitter, Listener, Manager};
 use thiserror::Error;
 use tokio::sync::Mutex;
 mod oauth;
@@ -43,15 +43,25 @@ enum SpotiampPlayerEvent {
     TrackChanged(TrackData),
     Playing { id: u128, position_ms: u32 },
 }
+
+#[derive(Clone, Deserialize)]
+enum PlayerWindowEvent {
+    Ready,
+}
+
+#[derive(Clone, Deserialize)]
+enum PlaylistWindowEvent {
+    Ready,
+}
+
 async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
-    let player = player().lock().await;
-    player
-        .login(app_handle)
+    let p = player().lock().await;
+    p.login(app_handle)
         .await
         .map_err(|e| StartError::LoginFailed { e })?;
 
     let zoom = 2.0;
-    let mut channel = player.get_player_event_channel();
+    let mut channel = p.get_player_event_channel();
     let player_window = player_window::build_window(app_handle, zoom).map_err(|e| {
         StartError::WindowCreationFailed {
             window_name: "Player".to_string(),
@@ -111,32 +121,36 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
     });
 
     let app_handle = app_handle.clone();
-    app_handle.clone().listen("player-window-ready", move |e| {
-        app_handle.unlisten(e.id()); // only listen to first event
-        let mut playlist_position = player_window
-            .outer_position()
-            .expect("a position for the player window");
-        playlist_position.y += player_window
-            .outer_size()
-            .expect("a player windoow position")
-            .height as i32;
-        let playlist_window = playlist_window::build_window(
-            &app_handle,
-            zoom,
-            playlist_position.to_logical(
-                player_window
-                    .scale_factor()
-                    .expect("a logical playlist position"),
+    app_handle.clone().listen("playerWindow", move |event| {
+        match serde_json::from_str::<PlayerWindowEvent>(event.payload()) {
+            Ok(e) => match e {
+                PlayerWindowEvent::Ready => {
+                    if app_handle.get_webview_window("playlist").is_none() {
+                        let mut playlist_position = player_window
+                            .outer_position()
+                            .expect("a position for the player window");
+                        playlist_position.y += player_window
+                            .outer_size()
+                            .expect("a player windoow position")
+                            .height as i32;
+                        playlist_window::build_window(
+                            &app_handle,
+                            zoom,
+                            playlist_position.to_logical(
+                                player_window
+                                    .scale_factor()
+                                    .expect("a logical playlist position"),
+                            ),
+                        )
+                        .expect("a playlist window to be created");
+                    }
+                }
+            },
+            Err(e) => log::debug!(
+                "Could not deserialize playlistWindow event: '{:?}' ({e:?}) - ignoring",
+                event.payload()
             ),
-        )
-        .expect("a playlist window to be created");
-        app_handle.listen("set-playlist-window-visibility", move |e| {
-            if e.payload() == "true" {
-                playlist_window.show().expect("Playlist window to show");
-            } else {
-                playlist_window.hide().expect("Playlist window to hide");
-            }
-        });
+        }
     });
 
     Ok(())
@@ -154,8 +168,10 @@ pub fn run() {
             player_window::pause,
             player_window::stop,
             player_window::get_volume,
+            player_window::set_volume,
             player_window::take_latest_spectrum,
             player_window::seek,
+            player_window::set_playlist_window_visible,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -164,13 +180,6 @@ pub fn run() {
                 if let Err(e) = start_app(&app_handle).await {
                     log::error!("Failed to start ({e:?})");
                     app_handle.exit(1);
-                }
-            });
-            app.listen("volume-change", move |event| {
-                if let Ok(volume) = serde_json::from_str::<u16>(event.payload()) {
-                    spawn(async move {
-                        player().lock().await.set_volume(volume);
-                    });
                 }
             });
 
