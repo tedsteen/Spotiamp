@@ -66,23 +66,18 @@ export class Visualizer {
         new Bar(18),
     ]);
     clearAfterStop = false;
+    lastTick = 0;
 
     constructor() {
         this.running = false;
     }
 
-    async start() {
-        this.running = true;
-
-        let lastTick = Date.now();
-
-        while (this.running) {
-            try {
-                const now = Date.now();
-                const deltaTime = now - lastTick;
-
-                const visualizerData = await invoke("take_latest_spectrum", {});
-                lastTick = now;
+    runVisualizerUpdate() {
+        if (this.running) {
+            const now = Date.now();
+            const deltaTime = now - this.lastTick;
+            this.lastTick = now;
+            invoke("take_latest_spectrum", {}).then((visualizerData) => {
                 if (visualizerData) {
                     let idx = 0;
                     for (var pair of visualizerData) {
@@ -92,13 +87,24 @@ export class Visualizer {
                         idx++;
                     }
                 }
-            } catch (e) {
+                requestAnimationFrame(this.runVisualizerUpdate.bind(this));
+            }).catch((e) => {
                 console.error("Failed to fetch visualizer data", e);
+                // Try again...
+                requestAnimationFrame(this.runVisualizerUpdate.bind(this));
+            });
+        } else {
+            if (this.clearAfterStop) {
+                this.clear();
             }
         }
-        if (this.clearAfterStop) {
-            this.clear();
-        }
+    }
+
+    start() {
+        this.running = true;
+        this.lastTick = Date.now();
+        // Start the update "loop" using requestAnimationFrame to move forward
+        this.runVisualizerUpdate();
     }
 
     clear() {
