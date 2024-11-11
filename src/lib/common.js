@@ -40,7 +40,6 @@ export function durationToString(durationInMs) {
 /**
  * @typedef {(string)} Uri
  */
-
 export class SpotifyTrack {
     /**
     * @param {string} artist
@@ -90,12 +89,7 @@ function preventAndStopPropagation(ev) {
 }
 
 /**
- * @callback urlCallback
- * @param {string} url
- */
-
-/**
- * @param {urlCallback} urlCallback 
+ * @param {(url: string) => void} urlCallback 
  * @returns {() => void} unlisten
  */
 export function handleDrop(urlCallback) {
