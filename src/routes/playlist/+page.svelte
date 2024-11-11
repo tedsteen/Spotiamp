@@ -5,180 +5,72 @@
     setZoom,
     range,
     handleDrop,
-    handleError,
-    subscribeToWindowEvent,
     emitWindowEvent,
   } from "$lib/common.js";
-  // TODO: only import the type somehow
-  import { SpotifyTrack } from "$lib/spotifyTrack";
-  import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
+  import { Playlist } from "$lib/playlist.svelte";
 
   const ZOOM = 1;
   setZoom(ZOOM);
 
-  let loadedRow = $state();
-  /**
-   * @type {PlaylistRow[]}
-   */
-  let rows = $state([]);
-  /**
-   * @type {PlaylistRow[]}
-   */
-  let selectedRows = $state([]);
   let playlistWidth = $state(Math.ceil(window.innerWidth / ZOOM / 25));
   let playlistHeight = $state(Math.ceil(window.innerHeight / ZOOM / 29));
-
-  class PlaylistRow {
-    /**
-     * @param {SpotifyTrack} track
-     */
-    constructor(track) {
-      this.track = track;
-    }
-
-    async load() {
-      loadedRow = this;
-      await invoke("load_track", { uri: this.track.uri }).catch(handleError);
-    }
-
-    play() {
-      this.load().then(() => {
-        invoke("play", {}).catch(handleError);
-      });
-    }
-
-    isLoaded() {
-      return this == loadedRow;
-    }
-
-    isSelected() {
-      return selectedRows.indexOf(this) != -1;
-    }
-  }
-
-  /**
-   * @param {SpotifyTrack} track
-   */
-  function addTrack(track) {
-    const row = new PlaylistRow(track);
-    rows.push(row);
-    if (!loadedRow) {
-      row.load();
-    }
-  }
-
-  function playNext() {
-    const currRowIndex = rows.indexOf(loadedRow);
-    const nextRow = rows[currRowIndex + 1];
-    console.info("next-track", currRowIndex, nextRow);
-    if (nextRow) {
-      nextRow.load();
-      return true;
-    } else {
-      return false;
-    }
-  }
-
+  const playlist = new Playlist();
   onMount(() => {
     spotifyUrlToTrack(
       "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
     ).then((track) => {
-      addTrack(track);
+      playlist.addTrack(track);
     });
 
     spotifyUrlToTrack(
       "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
     ).then((track) => {
-      addTrack(track);
+      playlist.addTrack(track);
     });
 
     spotifyUrlToTrack(
       "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
     ).then((track) => {
-      addTrack(track);
+      playlist.addTrack(track);
     });
 
     spotifyUrlToTrack(
       "https://open.spotify.com/track/2iP0WoxusUtDpnNEgewVD8",
     ).then((track) => {
-      addTrack(track);
+      playlist.addTrack(track);
     });
 
     spotifyUrlToTrack(
       "https://open.spotify.com/track/6zTO0Y58ZBd1ZMjH0EIX1X",
     ).then((track) => {
-      addTrack(track);
+      playlist.addTrack(track);
     });
 
     spotifyUrlToTrack(
       "https://open.spotify.com/track/72oaFIAqlK7N7a8cyHZZ3i",
     ).then((track) => {
-      addTrack(track);
+      playlist.addTrack(track);
     });
 
     spotifyUrlToTrack(
       "https://open.spotify.com/track/6qnoOnDK3embwtU89Fz5XN",
     ).then((track) => {
-      addTrack(track);
+      playlist.addTrack(track);
     });
 
     const cleanupDropHandler = handleDrop((url) => {
       spotifyUrlToTrack(url).then((track) => {
-        addTrack(track);
+        playlist.addTrack(track);
       });
     });
 
-    const playerWindowSubscription = subscribeToWindowEvent(
-      "playerWindow",
-      (event) => {
-        if (event.NextPressed !== undefined) {
-          playNext();
-        } else if (event.PreviousPressed !== undefined) {
-          const currRowIndex = rows.indexOf(loadedRow);
-          const previousRow = rows[currRowIndex - 1];
-          console.info("previous-track", currRowIndex, previousRow);
-          previousRow?.load();
-        }
-      },
-    );
-
-    const playerSubscription = subscribeToWindowEvent("player", (event) => {
-      if (event.EndOfTrack) {
-        if (!playNext()) {
-          invoke("stop").catch(handleError);
-        }
-      }
-    });
-
-    /**
-     * @param {DocumentEventMap["keydown"]} e
-     */
-    function playlistKeyDownListener(e) {
-      const selectedRow = selectedRows[0];
-      if (selectedRow) {
-        let nextRow;
-        if (e.key == "ArrowDown") {
-          const currRowIndex = rows.indexOf(selectedRow);
-          nextRow = rows[currRowIndex + 1];
-        } else if (e.key == "ArrowUp") {
-          const currRowIndex = rows.indexOf(selectedRow);
-          nextRow = rows[currRowIndex - 1];
-        }
-        if (nextRow) {
-          selectedRows = [nextRow];
-        }
-      }
-    }
-    document.addEventListener("keydown", playlistKeyDownListener);
-
     emitWindowEvent("playlistWindow", { Ready: null });
+
     // Cleanups
     return () => {
-      playerWindowSubscription.then((unlisten) => unlisten());
-      playerSubscription.then((unlisten) => unlisten());
-      document.removeEventListener("keydown", playlistKeyDownListener);
       cleanupDropHandler();
+      playlist.dispose();
     };
   });
 
@@ -214,12 +106,12 @@
   <div class="tracks-container">
     <table id="playlist-tracks">
       <tbody>
-        {#each rows as row, index}
+        {#each playlist.rows as row, index}
           <tr
             class="playlist-track"
             class:loaded={row.isLoaded()}
             class:selected={row.isSelected()}
-            onmousedown={() => (selectedRows = [row])}
+            onmousedown={() => (playlist.selectedRows = [row])}
             ondblclick={() => row.play()}
           >
             <td>
