@@ -2,6 +2,9 @@
   import { invoke } from "@tauri-apps/api/core";
 
   import {
+    durationToMMSS,
+    durationToString,
+    SpotifyTrack,
     emitWindowEvent,
     handleError,
     subscribeToWindowEvent,
@@ -9,13 +12,6 @@
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
-
-  // TODO: only export the SpotifyTrack type somehow
-  import {
-    durationToMMSS,
-    durationToString,
-    SpotifyTrack,
-  } from "$lib/spotifyTrack";
   import { Visualizer } from "$lib/visualizer.svelte";
 
   /** @type {{data: import('./$types').PageData}} */

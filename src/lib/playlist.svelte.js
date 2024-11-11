@@ -1,7 +1,6 @@
 // TODO: only import the type somehow
-import { SpotifyTrack } from "$lib/spotifyTrack";
 import { invoke } from "@tauri-apps/api/core";
-import { handleError, subscribeToWindowEvent } from "./common";
+import { handleError, SpotifyTrack, subscribeToWindowEvent } from "./common";
 
 class PlaylistRow {
     /**
