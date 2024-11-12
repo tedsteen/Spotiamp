@@ -36,6 +36,28 @@ export function durationToString(durationInMs) {
     return timeString;
 }
 
+export const enterExitViewportObserver = new IntersectionObserver(
+    (entries) => {
+        entries.forEach(entry => {
+            const eventName = entry.isIntersecting ? 'enterViewport' : 'exitViewport';
+            entry.target.dispatchEvent(new CustomEvent(eventName));
+        });
+    }
+);
+
+/**
+ * @param {HTMLElement} element 
+ */
+export function enterExitViewport(element) {
+    enterExitViewportObserver.observe(element);
+
+    return {
+        destroy() {
+            enterExitViewportObserver.unobserve(element);
+        }
+    }
+}
+
 export class SpotifyUri {
     /**
      * @param {"track" | "playlist"} type 

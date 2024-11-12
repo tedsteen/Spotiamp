@@ -1,6 +1,6 @@
 // TODO: only import the type somehow
 import { invoke } from "@tauri-apps/api/core";
-import { handleError, loadTrack, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
+import { enterExitViewportObserver, handleError, loadTrack, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
 
 class PlaylistRow {
     /**
@@ -24,38 +24,33 @@ class PlaylistRow {
         this.uri = uri;
         this.loadingMessage = `${this.uri}`;
     }
-
-    /**
-     * @param {HTMLElement} e 
-     */
-    actionWhenInViewport(e) {
-        const observer = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting) {
-                if (this.uri.type == "track") {
-                    loadTrack(this.uri).then((track) => {
-                        console.info("Populate track", track);
-                        this.track = track;
-                    })
-                } else if (this.uri.type == "playlist") {
-                    invoke("get_playlist_track_ids", { uri: this.uri.toString() }).then((trackIds) => {
-                        // Remove the loading-playlist-row
-                        this.playlist.rows.splice(this.playlist.rows.indexOf(this));
-                        for (var trackId of trackIds) {
-                            this.playlist.addTrack(SpotifyUri.fromString(trackId))
-                        }
-                    })
-                }
-                observer.disconnect();
+    getOnEnterViewport() {
+        // NOTE: `this` is overridden with the HTMLElement when attaching event listeners to elements.
+        //       We capture `this` as `self` before returning the actual event callback so that we can access `this` in the callback.
+        const self = this;
+        /**
+         * @param {CustomEvent} event
+         * @this HTMLElement
+         */
+        function eventCallback(event) {
+            if (self.uri.type == "track") {
+                loadTrack(self.uri).then((track) => {
+                    self.track = track;
+                })
+            } else if (self.uri.type == "playlist") {
+                invoke("get_playlist_track_ids", { uri: self.uri.toString() }).then((trackIds) => {
+                    // Remove the loading-playlist-row
+                    self.playlist.rows.splice(self.playlist.rows.indexOf(self));
+                    for (var trackId of trackIds) {
+                        self.playlist.addTrack(SpotifyUri.fromString(trackId))
+                    }
+                })
             }
-        });
 
-        observer.observe(e);
+            enterExitViewportObserver.unobserve(this);
+        };
+        return eventCallback;
 
-        return {
-            destroy() {
-                observer.disconnect();
-            }
-        }
     }
 
     async load() {

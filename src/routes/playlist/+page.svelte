@@ -1,6 +1,7 @@
 <script>
   import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
   import {
+    enterExitViewport,
     setZoom,
     range,
     handleDrop,
@@ -90,7 +91,8 @@
             class:selected={row.isSelected()}
             onmousedown={() => (playlist.selectedRows = [row])}
             ondblclick={() => row.play()}
-            use:row.actionWhenInViewport
+            use:enterExitViewport
+            onenterViewport={row.getOnEnterViewport()}
           >
             <td>
               <span class="playlist-track-number">{index + 1}.&nbsp;</span>
