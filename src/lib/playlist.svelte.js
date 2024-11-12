@@ -16,6 +16,11 @@ class PlaylistRow {
     displayDuration = $derived(this.track ? this.track.displayDuration : '')
 
     /**
+     * @type {Promise<any> | undefined}
+     */
+    loadMetadataPromise
+
+    /**
      * @param {SpotifyUri} uri
      * @param {Playlist} playlist
      */
@@ -24,6 +29,42 @@ class PlaylistRow {
         this.uri = uri;
         this.loadingMessage = `${this.uri}`;
     }
+
+    loadMetadata() {
+        if (!this.loadMetadataPromise) {
+            console.info("load metadata for", this.uri.id);
+            this.loadMetadataPromise = new Promise((resolve, reject) => {
+                if (this.uri.type == "track") {
+                    loadTrack(this.uri).then((track) => {
+                        this.track = track;
+                        resolve(undefined);
+                    }).catch((e) => {
+                        console.error("Could not load track", this.uri.id, e);
+                        this.playlist.rows.splice(this.playlist.rows.indexOf(this));
+                        reject(e);
+                    });
+                } else if (this.uri.type == "playlist") {
+                    invoke("get_playlist_track_ids", { uri: this.uri.toString() }).then((trackIds) => {
+                        // Remove the loading-playlist-row
+                        this.playlist.rows.splice(this.playlist.rows.indexOf(this), 1);
+                        for (var trackId of trackIds) {
+                            this.playlist.addTrack(SpotifyUri.fromString(trackId))
+                        }
+                        resolve(undefined);
+                    }).catch((e) => {
+                        console.error("Could not load playlist", this.uri.id, e);
+                        this.playlist.rows.splice(this.playlist.rows.indexOf(this));
+                        reject(e);
+                    });
+                } else {
+                    reject(`Could not load track '${this.uri.id}'. Type '${this.uri.type}' is not supported`);
+                }
+            });
+
+        }
+        return this.loadMetadataPromise;
+    }
+
     getOnEnterViewport() {
         // NOTE: `this` is overridden with the HTMLElement when attaching event listeners to elements.
         //       We capture `this` as `self` before returning the actual event callback so that we can access `this` in the callback.
@@ -33,27 +74,15 @@ class PlaylistRow {
          * @this HTMLElement
          */
         function eventCallback(event) {
-            if (self.uri.type == "track") {
-                loadTrack(self.uri).then((track) => {
-                    self.track = track;
-                })
-            } else if (self.uri.type == "playlist") {
-                invoke("get_playlist_track_ids", { uri: self.uri.toString() }).then((trackIds) => {
-                    // Remove the loading-playlist-row
-                    self.playlist.rows.splice(self.playlist.rows.indexOf(self));
-                    for (var trackId of trackIds) {
-                        self.playlist.addTrack(SpotifyUri.fromString(trackId))
-                    }
-                })
-            }
-
+            self.loadMetadata();
             enterExitViewportObserver.unobserve(this);
         };
         return eventCallback;
 
     }
 
-    async load() {
+    async loadTrack() {
+        await this.loadMetadata();
         if (this.track) {
             this.playlist.loadedRow = this;
             await invoke("load_track", { uri: this.track.uri.toString() }).catch(handleError);
@@ -61,7 +90,7 @@ class PlaylistRow {
     }
 
     play() {
-        this.load().then(() => {
+        this.loadTrack().then(() => {
             invoke("play", {}).catch(handleError);
         });
     }
@@ -143,7 +172,7 @@ export class Playlist {
         const row = new PlaylistRow(uri, this);
         this.rows.push(row);
         if (!this.loadedRow) {
-            row.load();
+            row.loadTrack();
         }
     }
 
@@ -151,7 +180,7 @@ export class Playlist {
         const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
         const nextRow = this.rows[currRowIndex + 1];
         if (nextRow) {
-            nextRow.load();
+            nextRow.loadTrack();
             return true;
         } else {
             return false;
@@ -161,7 +190,7 @@ export class Playlist {
     playPrevious() {
         const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
         const previousRow = this.rows[currRowIndex - 1];
-        previousRow?.load();
+        previousRow?.loadTrack();
     }
 
 }
