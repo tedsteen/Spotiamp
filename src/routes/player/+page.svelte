@@ -8,6 +8,7 @@
     emitWindowEvent,
     handleError,
     subscribeToWindowEvent,
+    SpotifyUri,
   } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
@@ -40,7 +41,7 @@
   const tickerOverrideText = $derived.by(() => {
     if (uiInputState == "seeking") {
       return loadedTrack
-        ? `SEEK TO: ${durationToString(sliderSeekPosition)}/${loadedTrack.durationAsString} (${Math.ceil((sliderSeekPosition / loadedTrack.durationInMs) * 100)}%)`
+        ? `SEEK TO: ${durationToString(sliderSeekPosition)}/${loadedTrack.displayDuration} (${Math.ceil((sliderSeekPosition / loadedTrack.durationInMs) * 100)}%)`
         : "NO TRACK LOADED";
     } else if (uiInputState == "volume-change") {
       return `VOLUME: ${volume}%`;
@@ -61,7 +62,9 @@
     if (loadedTrack) {
       if (playerState == "stopped") {
         playerState = "playing"; // To make the UI a bit snappier
-        await invoke("load_track", { uri: loadedTrack.uri }).catch(handleError);
+        await invoke("load_track", { uri: loadedTrack.uri.toString() }).catch(
+          handleError,
+        );
       }
     }
 
@@ -137,8 +140,13 @@
       "player",
       (event) => {
         if (event.TrackChanged) {
-          let { track_uri, artist, name, duration } = event.TrackChanged;
-          const track = new SpotifyTrack(artist, name, duration, track_uri);
+          let { uri, artist, name, duration } = event.TrackChanged;
+          const track = new SpotifyTrack(
+            artist,
+            name,
+            duration,
+            SpotifyUri.fromString(uri),
+          );
           loadTrack(track);
           seekPosition = 0;
         } else if (event.Playing) {
@@ -198,7 +206,7 @@
   ></div>
   <TextTicker
     text={loadedTrack
-      ? `${loadedTrack.artist} - ${loadedTrack.name} (${loadedTrack.durationAsString})`
+      ? `${loadedTrack.displayName} (${loadedTrack.displayDuration})`
       : "Winamp 2.91"}
     textOverride={tickerOverrideText}
     x="111"

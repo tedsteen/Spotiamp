@@ -1,11 +1,11 @@
 <script>
   import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
   import {
-    spotifyUrlToTrack,
     setZoom,
     range,
     handleDrop,
     emitWindowEvent,
+    SpotifyUri,
   } from "$lib/common.js";
   import { onMount } from "svelte";
   import { Playlist } from "$lib/playlist.svelte";
@@ -17,52 +17,29 @@
   let playlistHeight = $state(Math.ceil(window.innerHeight / ZOOM / 29));
   const playlist = new Playlist();
   onMount(() => {
-    spotifyUrlToTrack(
-      "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
-    ).then((track) => {
-      playlist.addTrack(track);
-    });
-
-    spotifyUrlToTrack(
-      "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
-    ).then((track) => {
-      playlist.addTrack(track);
-    });
-
-    spotifyUrlToTrack(
-      "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
-    ).then((track) => {
-      playlist.addTrack(track);
-    });
-
-    spotifyUrlToTrack(
-      "https://open.spotify.com/track/2iP0WoxusUtDpnNEgewVD8",
-    ).then((track) => {
-      playlist.addTrack(track);
-    });
-
-    spotifyUrlToTrack(
-      "https://open.spotify.com/track/6zTO0Y58ZBd1ZMjH0EIX1X",
-    ).then((track) => {
-      playlist.addTrack(track);
-    });
-
-    spotifyUrlToTrack(
-      "https://open.spotify.com/track/72oaFIAqlK7N7a8cyHZZ3i",
-    ).then((track) => {
-      playlist.addTrack(track);
-    });
-
-    spotifyUrlToTrack(
-      "https://open.spotify.com/track/6qnoOnDK3embwtU89Fz5XN",
-    ).then((track) => {
-      playlist.addTrack(track);
-    });
+    playlist.addTrack(
+      SpotifyUri.fromUrl(
+        "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
+      ),
+    );
+    playlist.addTrack(
+      SpotifyUri.fromUrl(
+        "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
+      ),
+    );
+    playlist.addTrack(
+      SpotifyUri.fromUrl(
+        "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
+      ),
+    );
+    playlist.addTrack(
+      SpotifyUri.fromUrl(
+        "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
+      ),
+    );
 
     const cleanupDropHandler = handleDrop((url) => {
-      spotifyUrlToTrack(url).then((track) => {
-        playlist.addTrack(track);
-      });
+      playlist.addTrack(SpotifyUri.fromUrl(url));
     });
 
     emitWindowEvent("playlistWindow", { Ready: null });
@@ -113,15 +90,13 @@
             class:selected={row.isSelected()}
             onmousedown={() => (playlist.selectedRows = [row])}
             ondblclick={() => row.play()}
+            use:row.actionWhenInViewport
           >
             <td>
               <span class="playlist-track-number">{index + 1}.&nbsp;</span>
-              <span class="playlist-track-name"
-                >{row.track.artist} - {row.track.name}</span
-              >
+              <span class="playlist-track-name">{row.displayName}</span>
             </td>
-            <td class="playlist-track-duration">{row.track.durationAsString}</td
-            >
+            <td class="playlist-track-duration">{row.displayDuration}</td>
           </tr>
         {/each}
       </tbody>

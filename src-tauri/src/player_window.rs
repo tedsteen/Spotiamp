@@ -9,8 +9,7 @@ use crate::player;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TrackData {
-    track_id: u128,
-    track_uri: String,
+    uri: String,
     artist: String,
     name: String,
     duration: u32,
@@ -18,16 +17,15 @@ pub struct TrackData {
 impl TrackData {
     pub fn new(track_id: SpotifyId, artist: &str, name: &str, duration: u32) -> Self {
         Self {
-            track_id: track_id.id,
-            track_uri: track_id.to_uri().expect("a valid uri"),
+            uri: track_id.to_uri().expect("a valid uri"),
             artist: artist.to_string(),
             name: name.to_string(),
             duration,
         }
     }
 }
-impl From<Track> for TrackData {
-    fn from(track: Track) -> Self {
+impl From<&Track> for TrackData {
+    fn from(track: &Track) -> Self {
         Self::new(
             track.id,
             &track
@@ -125,16 +123,30 @@ pub async fn stop() -> Result<(), String> {
 pub async fn get_track(uri: &str) -> Result<TrackData, String> {
     let spotify_player = &mut player().lock().await;
 
-    let track = spotify_player
-        .get_track(
+    Ok(TrackData::from(
+        &spotify_player
+            .get_track(
+                SpotifyId::from_uri(uri)
+                    .map_err(|e| format!("TODO: Failed to get track by uri '{uri}' ({e:?})"))?,
+            )
+            .await
+            .map_err(|e| format!("Could not load track ({e:?})"))?,
+    ))
+}
+
+#[tauri::command]
+pub async fn get_playlist_track_ids(uri: &str) -> Result<Vec<String>, String> {
+    let spotify_player = &mut player().lock().await;
+    Ok(spotify_player
+        .get_playlist_track_ids(
             SpotifyId::from_uri(uri)
-                .map_err(|e| format!("TODO: Failed to get track by uri '{uri}' ({e:?})"))?,
+                .map_err(|e| format!("TODO: Failed to get playlist by uri '{uri}' ({e:?})"))?,
         )
         .await
-        .map_err(|e| format!("Could not load track ({e:?})"))?;
-    let track_data = TrackData::from(track);
-    log::trace!("Got track data: {track_data:?}");
-    Ok(track_data)
+        .map_err(|e| format!("Could not load playlist tracks ({e:?})"))?
+        .iter()
+        .map(|track_id| track_id.to_uri().expect("a valid uri"))
+        .collect())
 }
 
 #[tauri::command]

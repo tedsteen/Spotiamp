@@ -164,6 +164,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             player_window::get_track,
             player_window::load_track,
+            player_window::get_playlist_track_ids,
             player_window::play,
             player_window::pause,
             player_window::stop,

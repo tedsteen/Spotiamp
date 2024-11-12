@@ -24,7 +24,6 @@ export function durationToMMSS(durationInMs) {
     const seconds = durationInMs - (minutes * 60);
     return new MMSS(minutes, seconds);
 }
-
 /**
  * @param {number} durationInMs
  * @returns {string}
@@ -37,21 +36,72 @@ export function durationToString(durationInMs) {
     return timeString;
 }
 
+export class SpotifyUri {
+    /**
+     * @param {"track" | "playlist"} type 
+     * @param {string} id 
+     */
+    constructor(type, id) {
+        this.type = type;
+        this.id = id;
+    }
+
+    toString() {
+        return `spotify:${this.type}:${this.id}`;
+    }
+}
+
+const spotifyUriRe = /spotify:(.*):(.{22})/;
 /**
- * @typedef {(string)} Uri
+ * @param {string} uriAsString 
  */
+SpotifyUri.fromString = function (uriAsString) {
+    const matches = spotifyUriRe.exec(uriAsString);
+    if (matches?.length == 3) {
+        const type = matches[1], id = matches[2];
+        if (type == "track" || type == "playlist") {
+            return new SpotifyUri(type, id);
+        } else {
+            throw `Only track and playlist types allowed as spotify URIs`;
+        }
+    }
+
+    throw `${uriAsString} does not match a spotify URI`;
+}
+
+const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
+/**
+ * @param {string} url
+ * @returns {SpotifyUri}
+ */
+SpotifyUri.fromUrl = function (url) {
+    const matches = spotifyUrlRe.exec(url);
+    if (matches?.length == 3) {
+        const type = matches[1], id = matches[2];
+        if (type == "track" || type == "playlist") {
+            return new SpotifyUri(type, id);
+        } else {
+            throw `Only track and playlist types allowed as spotify URLs`;
+        }
+    }
+
+    throw `${url} does not match a spotify URL`;
+}
+
+
 export class SpotifyTrack {
     /**
     * @param {string} artist
     * @param {string} name
     * @param {number} durationInMs
-    * @param {Uri} uri
+    * @param {SpotifyUri} uri
     */
     constructor(artist, name, durationInMs, uri) {
         this.name = name;
         this.artist = artist;
         this.durationInMs = durationInMs
-        this.durationAsString = durationToString(durationInMs);
+        this.displayDuration = durationToString(durationInMs);
+        this.displayName = `${this.artist} - ${this.name}`;
         this.uri = uri;
     }
 }
@@ -121,39 +171,20 @@ export function handleDrop(urlCallback) {
     }
 }
 
-const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
-
 /**
- * @param {string} url
- * @returns {string}
- */
-export function spotifyUrlToUri(url) {
-    const matches = spotifyUrlRe.exec(url);
-    if (matches) {
-        return `spotify:${matches[1]}:${matches[2]}`;
-    }
-    throw `${url} does not match a spotify URL`;
-}
-
-/**
- * @param {Uri} uri
+ * @param {SpotifyUri} uri
  * @returns {Promise<SpotifyTrack>}
  */
-async function getTrack(uri) {
-    const trackData = await invoke("get_track", { uri });
+export async function loadTrack(uri) {
+    /**
+     * @type {{artist: string, name: string, duration: number, uri: string}}
+     */
+    const trackData = await invoke("get_track", { uri: uri.toString() });
     return new SpotifyTrack(trackData.artist, trackData.name, trackData.duration, uri);
 }
 
 /**
- * @param {string} url 
- * @returns 
- */
-export async function spotifyUrlToTrack(url) {
-    return await getTrack(spotifyUrlToUri(url))
-}
-
-/**
- * @typedef { {playlistWindow: {event: {Ready: null}}, playerWindow: {event: {Ready: null, ChangeVolume: number, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {track_id: number, track_uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
+ * @typedef { {playlistWindow: {event: {Ready: null}}, playerWindow: {event: {Ready: null, ChangeVolume: number, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
  */
 
 /**

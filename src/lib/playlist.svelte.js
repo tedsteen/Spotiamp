@@ -1,20 +1,68 @@
 // TODO: only import the type somehow
 import { invoke } from "@tauri-apps/api/core";
-import { handleError, SpotifyTrack, subscribeToWindowEvent } from "./common";
+import { handleError, loadTrack, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
 
 class PlaylistRow {
     /**
-     * @param {SpotifyTrack} track
+     * @type {SpotifyUri}
+     */
+    uri
+    /**
+     * @type {SpotifyTrack | undefined}
+     */
+    track = $state()
+    loadingMessage = $state()
+    displayName = $derived(this.track ? this.track.displayName : this.loadingMessage)
+    displayDuration = $derived(this.track ? this.track.displayDuration : '')
+
+    /**
+     * @param {SpotifyUri} uri
      * @param {Playlist} playlist
      */
-    constructor(track, playlist) {
-        this.track = track;
+    constructor(uri, playlist) {
         this.playlist = playlist;
+        this.uri = uri;
+        this.loadingMessage = `${this.uri}`;
+    }
+
+    /**
+     * @param {HTMLElement} e 
+     */
+    actionWhenInViewport(e) {
+        const observer = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) {
+                if (this.uri.type == "track") {
+                    loadTrack(this.uri).then((track) => {
+                        console.info("Populate track", track);
+                        this.track = track;
+                    })
+                } else if (this.uri.type == "playlist") {
+                    invoke("get_playlist_track_ids", { uri: this.uri.toString() }).then((trackIds) => {
+                        // Remove the loading-playlist-row
+                        this.playlist.rows.splice(this.playlist.rows.indexOf(this));
+                        for (var trackId of trackIds) {
+                            this.playlist.addTrack(SpotifyUri.fromString(trackId))
+                        }
+                    })
+                }
+                observer.disconnect();
+            }
+        });
+
+        observer.observe(e);
+
+        return {
+            destroy() {
+                observer.disconnect();
+            }
+        }
     }
 
     async load() {
-        this.playlist.loadedRow = this;
-        await invoke("load_track", { uri: this.track.uri }).catch(handleError);
+        if (this.track) {
+            this.playlist.loadedRow = this;
+            await invoke("load_track", { uri: this.track.uri.toString() }).catch(handleError);
+        }
     }
 
     play() {
@@ -46,7 +94,6 @@ export class Playlist {
      */
     selectedRows = $state([]);
     constructor() {
-
         /**
         * @param {DocumentEventMap["keydown"]} e
         */
@@ -95,10 +142,10 @@ export class Playlist {
     }
 
     /**
-     * @param {SpotifyTrack} track
+     * @param {SpotifyUri} uri
      */
-    addTrack(track) {
-        const row = new PlaylistRow(track, this);
+    addTrack(uri) {
+        const row = new PlaylistRow(uri, this);
         this.rows.push(row);
         if (!this.loadedRow) {
             row.load();

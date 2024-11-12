@@ -13,7 +13,7 @@ use librespot::{
         authentication::Credentials, cache::Cache, config::SessionConfig, session::Session,
         spotify_id::SpotifyId, Error,
     },
-    metadata::{Metadata, Track},
+    metadata::{Metadata, Playlist, Track},
     playback::{
         config::{AudioFormat, Bitrate, NormalisationMethod, NormalisationType, PlayerConfig},
         dither::{mk_ditherer, TriangularDitherer},
@@ -156,7 +156,7 @@ impl SpotifyPlayer {
 
     pub async fn load_track(&self, uri: &str) -> Result<(), PlayError> {
         self.player.load(
-            SpotifyId::from_uri(uri).map_err(|e| PlayError::TrackMetadataError { e })?,
+            SpotifyId::from_uri(uri).map_err(|e| PlayError::MetadataError { e })?,
             false,
             0,
         );
@@ -180,12 +180,37 @@ impl SpotifyPlayer {
         Ok(())
     }
 
-    pub async fn get_track(&mut self, track: SpotifyId) -> Result<Track, PlayError> {
-        log::debug!("Getting track data: {:?}", track);
-        //TODO: Check why we get `TrackMetadataError { e: Error { kind: Internal, error: ErrorMessage("channel closed") } }` here after leaving the mac in standby for a while.
-        Track::get(&self.session, &track)
-            .await
-            .map_err(|e| PlayError::TrackMetadataError { e })
+    pub async fn get_playlist_track_ids(
+        &self,
+        playlist_id: SpotifyId,
+    ) -> Result<Vec<SpotifyId>, PlayError> {
+        match playlist_id.item_type {
+            librespot::core::spotify_id::SpotifyItemType::Playlist => {
+                let a = Playlist::get(&self.session, &playlist_id)
+                    .await
+                    .map_err(|e| PlayError::MetadataError { e })?
+                    .tracks()
+                    .cloned()
+                    .collect();
+                Ok(a)
+            }
+            _ => {
+                log::warn!("Trying to get playlist tracks from an id that is not a playlist");
+                Ok(vec![])
+            }
+        }
+    }
+    pub async fn get_track(&mut self, track_id: SpotifyId) -> Result<Track, PlayError> {
+        match track_id.item_type {
+            librespot::core::spotify_id::SpotifyItemType::Track => {
+                log::debug!("Getting track data: {:?}", track_id);
+                //TODO: Check why we get `TrackMetadataError { e: Error { kind: Internal, error: ErrorMessage("channel closed") } }` here after leaving the mac in standby for a while.
+                Track::get(&self.session, &track_id)
+                    .await
+                    .map_err(|e| PlayError::MetadataError { e })
+            }
+            _ => Err(PlayError::GettingTrackForNonTrackId(track_id)),
+        }
     }
 
     pub fn set_volume(&mut self, volume: u16) {
@@ -228,5 +253,7 @@ pub enum SessionError {
 #[derive(Debug, Error)]
 pub enum PlayError {
     #[error("Failed to fetch metadata ({e:?})")]
-    TrackMetadataError { e: Error },
+    MetadataError { e: Error },
+    #[error("Cannot get track for non track id ({_0:?})")]
+    GettingTrackForNonTrackId(SpotifyId),
 }
