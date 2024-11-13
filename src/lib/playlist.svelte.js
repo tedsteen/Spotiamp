@@ -1,6 +1,6 @@
 // TODO: only import the type somehow
 import { invoke } from "@tauri-apps/api/core";
-import { emitWindowEvent, enterExitViewportObserver, handleError, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
+import { emitWindowEvent, enterExitViewportObserver, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
 import memoize from "lodash.memoize";
 
 class MultiTrackRow {

@@ -66,7 +66,9 @@
       seekPosition = sliderSeekPosition = 0;
       playerState = loadedTrack.unavailable ? "unavailable" : "playing";
 
-      if (playerState != "unavailable") {
+      if (playerState == "unavailable") {
+        await invoke("stop").catch(handleError);
+      } else {
         await invoke("load_track", { uri: loadedTrack?.uri.asString }).catch(
           handleError,
         );
