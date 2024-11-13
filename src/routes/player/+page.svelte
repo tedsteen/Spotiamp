@@ -147,6 +147,8 @@
           loadTrack(track);
         } else if (event.PlayRequsted !== undefined) {
           play();
+        } else if (event.EndReached !== undefined) {
+          stop();
         }
       },
     );
