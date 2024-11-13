@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emitWindowEvent, enterExitViewportObserver, handleError, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
 import memoize from "lodash.memoize";
 
-class PlaylistRow {
+class MultiTrackRow {
     displayDuration = ""
     /**
      * @type {string}
@@ -42,7 +42,7 @@ class PlaylistRow {
          */
         function eventCallback() {
             enterExitViewportObserver.unobserve(this);
-            invoke("get_playlist_track_ids", { uri: self.uri.asString }).then((trackIds) => {
+            invoke("get_track_ids", { uri: self.uri.asString }).then((trackIds) => {
                 self.playlist.rows.splice(self.playlist.rows.indexOf(self), 1);
                 // Not sure why setTimeout is needed... Svelte bug?
                 setTimeout(async () => {
@@ -143,11 +143,11 @@ export class Playlist {
      */
     loadedRow = $state();
     /**
-     * @type {(TrackRow | PlaylistRow)[]}
+     * @type {(TrackRow | MultiTrackRow)[]}
      */
     rows = $state([]);
     /**
-     * @type {(TrackRow | PlaylistRow)[]}
+     * @type {(TrackRow | MultiTrackRow)[]}
      */
     selectedRows = $state([]);
     constructor() {
@@ -204,7 +204,7 @@ export class Playlist {
      * @param {SpotifyUri} uri
      */
     async addRow(uri) {
-        const row = uri.type == "playlist" ? new PlaylistRow(uri, this) : new TrackRow(uri, this);
+        const row = (uri.type == "playlist" || uri.type == "album") ? new MultiTrackRow(uri, this) : new TrackRow(uri, this);
         this.rows.push(row);
         if (!this.loadedRow && row instanceof TrackRow) {
             await row.loadTrack();

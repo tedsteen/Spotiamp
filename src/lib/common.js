@@ -60,7 +60,7 @@ export function enterExitViewport(element) {
 
 export class SpotifyUri {
     /**
-     * @param {"track" | "playlist"} type 
+     * @param {"track" | "playlist" | "album"} type 
      * @param {string} id 
      */
     constructor(type, id) {
@@ -78,10 +78,10 @@ SpotifyUri.fromString = function (uriAsString) {
     const matches = spotifyUriRe.exec(uriAsString);
     if (matches?.length == 3) {
         const type = matches[1], id = matches[2];
-        if (type == "track" || type == "playlist") {
+        if (type == "track" || type == "playlist" || type == "album") {
             return new SpotifyUri(type, id);
         } else {
-            throw `Only track and playlist types allowed as spotify URIs`;
+            throw `'${uriAsString}' is not a valid spotify URI. Only track, playlist and album types are allowed`;
         }
     }
 
@@ -97,11 +97,7 @@ SpotifyUri.fromUrl = function (url) {
     const matches = spotifyUrlRe.exec(url);
     if (matches?.length == 3) {
         const type = matches[1], id = matches[2];
-        if (type == "track" || type == "playlist") {
-            return new SpotifyUri(type, id);
-        } else {
-            throw `Only track and playlist types allowed as spotify URLs`;
-        }
+        return SpotifyUri.fromString(`spotify:${type}:${id}`);
     }
 
     throw `${url} does not match a spotify URL`;

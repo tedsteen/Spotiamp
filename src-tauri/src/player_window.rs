@@ -119,10 +119,10 @@ pub async fn get_track_metadata(uri: &str) -> Result<TrackMetadata, String> {
 }
 
 #[tauri::command]
-pub async fn get_playlist_track_ids(uri: &str) -> Result<Vec<String>, String> {
+pub async fn get_track_ids(uri: &str) -> Result<Vec<String>, String> {
     let spotify_player = &mut player().lock().await;
     Ok(spotify_player
-        .get_playlist_track_ids(
+        .get_track_ids(
             SpotifyId::from_uri(uri)
                 .map_err(|e| format!("TODO: Failed to get playlist by uri '{uri}' ({e:?})"))?,
         )

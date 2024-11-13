@@ -13,7 +13,7 @@ use librespot::{
         authentication::Credentials, cache::Cache, config::SessionConfig, session::Session,
         spotify_id::SpotifyId, Error,
     },
-    metadata::{Metadata, Playlist, Track},
+    metadata::{Album, Metadata, Playlist, Track},
     playback::{
         config::{AudioFormat, Bitrate, NormalisationMethod, NormalisationType, PlayerConfig},
         dither::{mk_ditherer, TriangularDitherer},
@@ -180,10 +180,7 @@ impl SpotifyPlayer {
         Ok(())
     }
 
-    pub async fn get_playlist_track_ids(
-        &self,
-        playlist_id: SpotifyId,
-    ) -> Result<Vec<SpotifyId>, PlayError> {
+    pub async fn get_track_ids(&self, playlist_id: SpotifyId) -> Result<Vec<SpotifyId>, PlayError> {
         match playlist_id.item_type {
             librespot::core::spotify_id::SpotifyItemType::Playlist => {
                 Ok(Playlist::get(&self.session, &playlist_id)
@@ -201,6 +198,14 @@ impl SpotifyPlayer {
                         is_track
                     })
                     .map(|item| &item.id)
+                    .cloned()
+                    .collect())
+            }
+            librespot::core::spotify_id::SpotifyItemType::Album => {
+                Ok(Album::get(&self.session, &playlist_id)
+                    .await
+                    .map_err(|e| PlayError::MetadataError { e })?
+                    .tracks()
                     .cloned()
                     .collect())
             }
