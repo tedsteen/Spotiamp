@@ -6,7 +6,6 @@
     range,
     handleDrop,
     emitWindowEvent,
-    SpotifyUri,
   } from "$lib/common.js";
   import { onMount } from "svelte";
   import { Playlist } from "$lib/playlist.svelte";
@@ -18,24 +17,9 @@
   let playlistHeight = $state(Math.ceil(window.innerHeight / ZOOM / 29));
   const playlist = new Playlist();
 
-  /**
-   * @argument {string[]} var_args
-   */
-  async function loadUrls(...var_args) {
-    for (var url of var_args) {
-      await playlist.addRow(SpotifyUri.fromUrl(url));
-    }
-  }
   onMount(() => {
-    loadUrls(
-      "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
-      "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
-      "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
-      //"https://open.spotify.com/playlist/2zKOYCC7MRak6klBtBCO5G",
-    );
-
-    const cleanupDropHandler = handleDrop((url) => {
-      playlist.addRow(SpotifyUri.fromUrl(url));
+    const cleanupDropHandler = handleDrop(async (urls) => {
+      await playlist.addUrls(urls);
     });
 
     emitWindowEvent("playlistWindow", { Ready: null });

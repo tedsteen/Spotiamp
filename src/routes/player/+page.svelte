@@ -8,7 +8,7 @@
     emitWindowEvent,
     handleError,
     subscribeToWindowEvent,
-    SpotifyUri,
+    handleDrop,
   } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
@@ -122,13 +122,6 @@
     }).catch(handleError);
   });
 
-  // handleDrop((url) => {
-  //   //TODO: Replace all in playlist with the dropped link
-  //   spotifyUrlToTrack(url).then((track) => {
-  //     loadAndPlay(track);
-  //   });
-  // });
-
   onMount(() => {
     // Tick seek position and blink number display
     const tickerInterval = setInterval(() => {
@@ -149,6 +142,15 @@
           play();
         } else if (event.EndReached !== undefined) {
           stop();
+        } else if (event.Ready !== undefined) {
+          emitWindowEvent("playerWindow", {
+            UrlsDropped: [
+              "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
+              "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
+              "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
+              "https://open.spotify.com/playlist/2zKOYCC7MRak6klBtBCO5G",
+            ],
+          });
         }
       },
     );
@@ -178,12 +180,16 @@
       },
     );
 
-    emitWindowEvent("playerWindow", { Ready: null });
+    const cleanupDropHandler = handleDrop((urls) => {
+      emitWindowEvent("playerWindow", { UrlsDropped: urls });
+    });
 
+    emitWindowEvent("playerWindow", { Ready: null });
     return () => {
       clearInterval(tickerInterval);
       playerEventsSubscription.then((unlisten) => unlisten());
       playlistWindowEventSubscription.then((unlisten) => unlisten());
+      cleanupDropHandler();
     };
   });
 </script>

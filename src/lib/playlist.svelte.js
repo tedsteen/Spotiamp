@@ -179,6 +179,11 @@ export class Playlist {
                     this.next(true);
                 } else if (event.PreviousPressed !== undefined) {
                     this.previous(true);
+                } else if (event.UrlsDropped) {
+                    const urls = event.UrlsDropped;
+                    this.clear().then(() => {
+                        this.addUrls(urls);
+                    });
                 }
             },
         );
@@ -199,7 +204,11 @@ export class Playlist {
             playerSubscription.then((unlisten) => unlisten());
         }
     }
-
+    async clear() {
+        this.rows = [];
+        this.selectedRows = [];
+        this.loadedRow = undefined;
+    }
     /**
      * @param {SpotifyUri} uri
      */
@@ -208,6 +217,15 @@ export class Playlist {
         this.rows.push(row);
         if (!this.loadedRow && row instanceof TrackRow) {
             await row.loadTrack();
+        }
+    }
+
+    /**
+     * @param {string[]} urls 
+     */
+    async addUrls(urls) {
+        for (const url of urls) {
+            await this.addRow(SpotifyUri.fromUrl(url));
         }
     }
 
