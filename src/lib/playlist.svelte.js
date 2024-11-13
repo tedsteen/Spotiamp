@@ -45,9 +45,9 @@ class PlaylistRow {
             invoke("get_playlist_track_ids", { uri: self.uri.asString }).then((trackIds) => {
                 self.playlist.rows.splice(self.playlist.rows.indexOf(self), 1);
                 // Not sure why setTimeout is needed... Svelte bug?
-                setTimeout(() => {
+                setTimeout(async () => {
                     for (var trackId of trackIds) {
-                        self.playlist.addRow(SpotifyUri.fromString(trackId))
+                        await self.playlist.addRow(SpotifyUri.fromString(trackId));
                     }
                 }, 1);
             }).catch((e) => {
@@ -115,7 +115,8 @@ class TrackRow {
             await this.populateTrack();
             if (this.track) {
                 this.playlist.loadedRow = this;
-                await emitWindowEvent("playlistWindow", { LoadTrack: { track: this.track } });
+                await emitWindowEvent("playlistWindow", { TrackLoaded: this.track });
+                return this.track;
             }
         } catch (e) {
             console.warn(`Could not load track metadata for ${this.uri.id}`, e);
@@ -123,10 +124,8 @@ class TrackRow {
     }
 
     async play() {
-        if (!this.track?.unavailable) {
-            await this.loadTrack();
-            await emitWindowEvent("playlistWindow", { PlayRequsted: null })
-        }
+        await this.loadTrack();
+        await emitWindowEvent("playlistWindow", { PlayRequsted: null })
     }
 
     isLoaded() {
@@ -177,18 +176,20 @@ export class Playlist {
             "playerWindow",
             (event) => {
                 if (event.NextPressed !== undefined) {
-                    this.playNext();
+                    this.next(true);
                 } else if (event.PreviousPressed !== undefined) {
-                    this.playPrevious();
+                    this.previous(true);
                 }
             },
         );
 
         const playerSubscription = subscribeToWindowEvent("player", (event) => {
             if (event.EndOfTrack) {
-                if (!this.playNext()) {
-                    invoke("stop").catch(handleError);
-                }
+                this.next(true).then((endReached) => {
+                    if (endReached) {
+                        emitWindowEvent("playlistWindow", { EndReached: null });
+                    }
+                });
             }
         });
 
@@ -210,26 +211,47 @@ export class Playlist {
         }
     }
 
-    playNext() {
+    /**
+     * @param {boolean} skipUnavailable
+     * @returns {Promise<boolean>} true if end has been reached
+     */
+    async next(skipUnavailable = false) {
         const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
         const nextRow = this.rows[currRowIndex + 1];
-
-        if (nextRow) {
-            if (nextRow instanceof TrackRow) {
-                nextRow.loadTrack();
-            }
+        if (!nextRow) {
             return true;
-        } else {
-            return false;
         }
+
+        if (nextRow instanceof TrackRow) {
+            const track = await nextRow.loadTrack();
+            if (track) {
+                if (skipUnavailable && track.unavailable) {
+                    return await this.next(skipUnavailable);
+                }
+            }
+        }
+        return false;
     }
 
-    playPrevious() {
+    /**
+     * @param {boolean} skipUnavailable
+     * @returns {Promise<boolean>} true if top has been reached
+     */
+    async previous(skipUnavailable = false) {
         const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
         const previousRow = this.rows[currRowIndex - 1];
-        if (previousRow instanceof TrackRow) {
-            previousRow.loadTrack();
+        if (!previousRow) {
+            return true;
         }
+        if (previousRow instanceof TrackRow) {
+            const track = await previousRow.loadTrack();
+            if (track) {
+                if (skipUnavailable && track.unavailable) {
+                    return await this.previous(skipUnavailable);
+                }
+            }
+        }
+        return false;
     }
 
 }

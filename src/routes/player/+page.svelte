@@ -32,7 +32,7 @@
    */
   let uiInputState = $state("nothing");
   /**
-   * @type {"stopped" | "playing" | "paused"}
+   * @type {"unavailable" | "stopped" | "playing" | "paused"}
    */
   let playerState = $state("stopped");
   let numberDisplayHidden = $state(true);
@@ -53,7 +53,7 @@
    */
   async function loadTrack(track) {
     loadedTrack = track;
-    if (playerState == "playing" || playerState == "paused") {
+    if (playerState != "stopped") {
       playerState = "stopped";
       await play();
     }
@@ -64,11 +64,13 @@
       await invoke("play").catch(handleError);
     } else if (loadedTrack) {
       seekPosition = sliderSeekPosition = 0;
-      playerState = loadedTrack.unavailable ? "paused" : "playing";
+      playerState = loadedTrack.unavailable ? "unavailable" : "playing";
 
-      await invoke("load_track", { uri: loadedTrack?.uri.asString }).catch(
-        handleError,
-      );
+      if (playerState != "unavailable") {
+        await invoke("load_track", { uri: loadedTrack?.uri.asString }).catch(
+          handleError,
+        );
+      }
     }
   }
 
@@ -97,9 +99,9 @@
 
   const visualizer = new Visualizer();
   $effect(() => {
-    if (playerState == "stopped" || playerState == "paused") {
-      visualizer.stop(playerState == "stopped");
-    } else if (playerState == "playing") {
+    if (playerState != "playing") {
+      visualizer.stop(playerState == "stopped" || playerState == "unavailable");
+    } else {
       visualizer.start();
     }
   });
@@ -132,7 +134,7 @@
     const tickerInterval = setInterval(() => {
       if (playerState == "paused") {
         numberDisplayHidden = !numberDisplayHidden;
-      } else {
+      } else if (playerState != "unavailable") {
         seekPosition += 1000;
       }
     }, 1000);
@@ -140,8 +142,8 @@
     const playlistWindowEventSubscription = subscribeToWindowEvent(
       "playlistWindow",
       (event) => {
-        if (event.LoadTrack) {
-          let { track } = event.LoadTrack;
+        if (event.TrackLoaded) {
+          let track = event.TrackLoaded;
           loadTrack(track);
         } else if (event.PlayRequsted !== undefined) {
           play();
@@ -190,7 +192,8 @@
   <div class="sprite stereo-mono-sprite stereo-mono-sprite-mono"></div>
   <div
     class="sprite stereo-mono-sprite stereo-mono-sprite-stereo"
-    class:stereo-mono-sprite-enabled={playerState != "stopped"}
+    class:stereo-mono-sprite-enabled={playerState != "stopped" &&
+      playerState != "unavailable"}
   ></div>
 
   <button
@@ -207,6 +210,7 @@
     id="titlebar"
   ></div>
   <TextTicker
+    unavailable={playerState == "unavailable"}
     text={loadedTrack
       ? `${loadedTrack.displayName} (${loadedTrack.displayDuration})`
       : "Winamp 2.91"}
@@ -216,6 +220,7 @@
   />
   <div
     class:hidden={playerState == "stopped" ||
+      playerState == "unavailable" ||
       (playerState == "paused" && numberDisplayHidden)}
   >
     <NumberDisplay
@@ -256,7 +261,7 @@
   <input
     type="range"
     class="sprite seek-position-sprite"
-    class:hidden={playerState == "stopped"}
+    class:hidden={playerState == "stopped" || playerState == "unavailable"}
     id="seek-position"
     min="0"
     max={loadedTrack?.durationInMs}
@@ -468,7 +473,10 @@
     --sprite-x: 26px;
     --sprite-y: 28px;
   }
-
+  .playpause-playing,
+  .playpause-unavailable {
+    background-position: -0px 0px;
+  }
   .playpause-paused {
     background-position: -9px 0px;
   }

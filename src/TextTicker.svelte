@@ -4,12 +4,19 @@
      * @typedef {Object} Props
      * @property {string} text
      * @property {string | undefined} textOverride
+     * @property {boolean} unavailable
      * @property {string} x
      * @property {string} y
      */
 
     /** @type {Props} */
-    let { text = $bindable(), textOverride = $bindable(), x, y } = $props();
+    let {
+        text = $bindable(),
+        textOverride = $bindable(),
+        unavailable = $bindable(),
+        x,
+        y,
+    } = $props();
 
     /**
      * @type {Object<String, [number, number]>}
@@ -129,7 +136,12 @@
     onDestroy(() => clearInterval(ticker));
 </script>
 
-<div class="text-container" style:--x="{x}px" style:--y="{y}px">
+<div
+    class="text-container"
+    style:--x="{x}px"
+    style:--y="{y}px"
+    style:opacity={unavailable ? "50%" : "100%"}
+>
     <div
         class="text-shift-container"
         style:--x-shift={textOverride ? 0 : -xShift}

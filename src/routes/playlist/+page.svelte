@@ -30,9 +30,8 @@
     loadUrls(
       "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
       "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
-      "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
       "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
-      /* "https://open.spotify.com/playlist/2zKOYCC7MRak6klBtBCO5G" */
+      //"https://open.spotify.com/playlist/2zKOYCC7MRak6klBtBCO5G",
     );
 
     const cleanupDropHandler = handleDrop((url) => {

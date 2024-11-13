@@ -205,7 +205,7 @@ export function handleDrop(urlCallback) {
 }
 
 /**
- * @typedef { {playlistWindow: {event: {Ready: null, PlayRequsted: null, LoadTrack: { track: SpotifyTrack }}}, playerWindow: {event: {Ready: null, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
+ * @typedef { {playlistWindow: {event: {Ready: null, PlayRequsted: null, TrackLoaded: SpotifyTrack, EndReached: null}}, playerWindow: {event: {Ready: null, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
  */
 
 /**
