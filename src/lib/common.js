@@ -187,8 +187,14 @@ export function handleDrop(urlCallback) {
         if (ev.dataTransfer) {
             for (const item of ev.dataTransfer.items) {
                 if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
-                    item.getAsString((url) => {
-                        urlCallback(url);
+                    item.getAsString((itemText) => {
+                        const urls = itemText
+                            .split("http")
+                            .filter(Boolean) // Remove any empty strings from the beginning
+                            .map(url => "http" + url);
+                        for (const url of urls) {
+                            urlCallback(url);
+                        }
                     });
                 }
             }
