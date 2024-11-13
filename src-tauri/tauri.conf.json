@@ -26,7 +26,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": "AB5A5E00EEE5FEC974E02EDBD6185780C85DD73A"
+      "signingIdentity": "Developer ID Application: Ted Steen (A75CCY878M)"
     }
   }
 }
