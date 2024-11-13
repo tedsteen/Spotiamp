@@ -1,7 +1,6 @@
 use std::sync::OnceLock;
 
 use librespot::playback::player::PlayerEvent;
-use player_window::TrackData;
 use serde::{Deserialize, Serialize};
 use spotify::{SessionError, SpotifyPlayer};
 use tauri::{AppHandle, Emitter, Listener, Manager};
@@ -35,13 +34,13 @@ enum StartError {
 
 #[derive(Clone, Serialize)]
 enum SpotiampPlayerEvent {
-    Stopped { id: u128 },
-    Paused { id: u128, position_ms: u32 },
-    EndOfTrack { id: u128 },
-    PositionCorrection { id: u128, position_ms: u32 },
-    Seeked { id: u128, position_ms: u32 },
-    TrackChanged(TrackData),
-    Playing { id: u128, position_ms: u32 },
+    Stopped { uri: String },
+    Paused { uri: String, position_ms: u32 },
+    EndOfTrack { uri: String },
+    PositionCorrection { uri: String, position_ms: u32 },
+    Seeked { uri: String, position_ms: u32 },
+    TrackChanged { uri: String },
+    Playing { uri: String, position_ms: u32 },
 }
 
 #[derive(Clone, Deserialize)]
@@ -77,29 +76,29 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
                     position_ms,
                     ..
                 } => Some(SpotiampPlayerEvent::Playing {
-                    id: track_id.id,
+                    uri: track_id.to_uri().expect("a valid uri"),
                     position_ms,
                 }),
-                PlayerEvent::Stopped { track_id, .. } => {
-                    Some(SpotiampPlayerEvent::Stopped { id: track_id.id })
-                }
+                PlayerEvent::Stopped { track_id, .. } => Some(SpotiampPlayerEvent::Stopped {
+                    uri: track_id.to_uri().expect("a valid uri"),
+                }),
                 PlayerEvent::Paused {
                     track_id,
                     position_ms,
                     ..
                 } => Some(SpotiampPlayerEvent::Paused {
-                    id: track_id.id,
+                    uri: track_id.to_uri().expect("a valid uri"),
                     position_ms,
                 }),
-                PlayerEvent::EndOfTrack { track_id, .. } => {
-                    Some(SpotiampPlayerEvent::EndOfTrack { id: track_id.id })
-                }
+                PlayerEvent::EndOfTrack { track_id, .. } => Some(SpotiampPlayerEvent::EndOfTrack {
+                    uri: track_id.to_uri().expect("a valid uri"),
+                }),
                 PlayerEvent::PositionCorrection {
                     track_id,
                     position_ms,
                     ..
                 } => Some(SpotiampPlayerEvent::PositionCorrection {
-                    id: track_id.id,
+                    uri: track_id.to_uri().expect("a valid uri"),
                     position_ms,
                 }),
                 PlayerEvent::Seeked {
@@ -107,12 +106,14 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
                     position_ms,
                     ..
                 } => Some(SpotiampPlayerEvent::Seeked {
-                    id: track_id.id,
+                    uri: track_id.to_uri().expect("a valid uri"),
                     position_ms,
                 }),
-                PlayerEvent::TrackChanged { audio_item } => Some(
-                    SpotiampPlayerEvent::TrackChanged(TrackData::from(*audio_item)),
-                ),
+                PlayerEvent::TrackChanged { audio_item } => {
+                    Some(SpotiampPlayerEvent::TrackChanged {
+                        uri: audio_item.track_id.to_uri().expect("a valid uri"),
+                    })
+                }
                 _ => None,
             } {
                 let _ = player_window_ref.emit("player", player_event);
@@ -162,7 +163,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            player_window::get_track,
+            player_window::get_track_metadata,
             player_window::load_track,
             player_window::get_playlist_track_ids,
             player_window::play,

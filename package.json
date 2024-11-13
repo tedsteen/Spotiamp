@@ -16,6 +16,7 @@
     "@tauri-apps/api": "^2.1",
     "@tauri-apps/plugin-dialog": "^2.0",
     "@tauri-apps/plugin-shell": "^2",
+    "lodash.memoize": "^4.1.2",
     "npm": "^10.9.0"
   },
   "devDependencies": {

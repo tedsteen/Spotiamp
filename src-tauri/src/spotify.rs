@@ -157,7 +157,7 @@ impl SpotifyPlayer {
     pub async fn load_track(&self, uri: &str) -> Result<(), PlayError> {
         self.player.load(
             SpotifyId::from_uri(uri).map_err(|e| PlayError::MetadataError { e })?,
-            false,
+            true,
             0,
         );
         Ok(())
@@ -186,13 +186,23 @@ impl SpotifyPlayer {
     ) -> Result<Vec<SpotifyId>, PlayError> {
         match playlist_id.item_type {
             librespot::core::spotify_id::SpotifyItemType::Playlist => {
-                let a = Playlist::get(&self.session, &playlist_id)
+                Ok(Playlist::get(&self.session, &playlist_id)
                     .await
                     .map_err(|e| PlayError::MetadataError { e })?
-                    .tracks()
+                    .contents
+                    .items
+                    .iter()
+                    .filter(|item| {
+                        let is_track = matches!(
+                            &item.id.item_type,
+                            librespot::core::spotify_id::SpotifyItemType::Track
+                        );
+
+                        is_track
+                    })
+                    .map(|item| &item.id)
                     .cloned()
-                    .collect();
-                Ok(a)
+                    .collect())
             }
             _ => {
                 log::warn!("Trying to get playlist tracks from an id that is not a playlist");
@@ -200,6 +210,7 @@ impl SpotifyPlayer {
             }
         }
     }
+
     pub async fn get_track(&mut self, track_id: SpotifyId) -> Result<Track, PlayError> {
         match track_id.item_type {
             librespot::core::spotify_id::SpotifyItemType::Track => {

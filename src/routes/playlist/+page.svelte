@@ -17,30 +17,26 @@
   let playlistWidth = $state(Math.ceil(window.innerWidth / ZOOM / 25));
   let playlistHeight = $state(Math.ceil(window.innerHeight / ZOOM / 29));
   const playlist = new Playlist();
+
+  /**
+   * @argument {string[]} var_args
+   */
+  async function loadUrls(...var_args) {
+    for (var url of var_args) {
+      await playlist.addRow(SpotifyUri.fromUrl(url));
+    }
+  }
   onMount(() => {
-    playlist.addTrack(
-      SpotifyUri.fromUrl(
-        "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
-      ),
-    );
-    playlist.addTrack(
-      SpotifyUri.fromUrl(
-        "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
-      ),
-    );
-    playlist.addTrack(
-      SpotifyUri.fromUrl(
-        "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
-      ),
-    );
-    playlist.addTrack(
-      SpotifyUri.fromUrl(
-        "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
-      ),
+    loadUrls(
+      "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
+      "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
+      "https://open.spotify.com/track/6ZZHFLjVpsilHYyv3mLuVe",
+      "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
+      /* "https://open.spotify.com/playlist/2zKOYCC7MRak6klBtBCO5G" */
     );
 
     const cleanupDropHandler = handleDrop((url) => {
-      playlist.addTrack(SpotifyUri.fromUrl(url));
+      playlist.addRow(SpotifyUri.fromUrl(url));
     });
 
     emitWindowEvent("playlistWindow", { Ready: null });
@@ -89,6 +85,7 @@
             class="playlist-track"
             class:loaded={row.isLoaded()}
             class:selected={row.isSelected()}
+            class:unavailable={row.unavailable}
             onmousedown={() => (playlist.selectedRows = [row])}
             ondblclick={() => row.play()}
             use:enterExitViewport
@@ -232,6 +229,14 @@
 
   .playlist-track.loaded {
     color: white;
+  }
+
+  .playlist-track.unavailable {
+    color: rgb(80, 80, 80);
+  }
+
+  .playlist-track.unavailable.loaded {
+    color: rgb(140, 140, 140);
   }
 
   /* ------ /TRACKS ------ */

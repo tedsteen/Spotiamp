@@ -66,10 +66,7 @@ export class SpotifyUri {
     constructor(type, id) {
         this.type = type;
         this.id = id;
-    }
-
-    toString() {
-        return `spotify:${this.type}:${this.id}`;
+        this.asString = `spotify:${this.type}:${this.id}`;
     }
 }
 
@@ -110,23 +107,37 @@ SpotifyUri.fromUrl = function (url) {
     throw `${url} does not match a spotify URL`;
 }
 
-
 export class SpotifyTrack {
     /**
     * @param {string} artist
     * @param {string} name
     * @param {number} durationInMs
     * @param {SpotifyUri} uri
+    * @param {boolean} unavailable
     */
-    constructor(artist, name, durationInMs, uri) {
+    constructor(artist, name, durationInMs, uri, unavailable) {
         this.name = name;
         this.artist = artist;
         this.durationInMs = durationInMs
         this.displayDuration = durationToString(durationInMs);
         this.displayName = `${this.artist} - ${this.name}`;
         this.uri = uri;
+        this.unavailable = unavailable;
     }
 }
+
+/**
+ * @param {SpotifyUri} uri
+ * @returns {Promise<SpotifyTrack>}
+ */
+SpotifyTrack.loadFromUri = async function (uri) {
+    /**
+     * @type {{artist: string, name: string, duration: number, uri: string, unavailable: boolean}}
+     */
+    const trackData = await invoke("get_track_metadata", { uri: uri.asString });
+    return new SpotifyTrack(trackData.artist, trackData.name, trackData.duration, uri, trackData.unavailable);
+}
+
 
 /**
  * @param {number} zoom 
@@ -194,19 +205,7 @@ export function handleDrop(urlCallback) {
 }
 
 /**
- * @param {SpotifyUri} uri
- * @returns {Promise<SpotifyTrack>}
- */
-export async function loadTrack(uri) {
-    /**
-     * @type {{artist: string, name: string, duration: number, uri: string}}
-     */
-    const trackData = await invoke("get_track", { uri: uri.toString() });
-    return new SpotifyTrack(trackData.artist, trackData.name, trackData.duration, uri);
-}
-
-/**
- * @typedef { {playlistWindow: {event: {Ready: null}}, playerWindow: {event: {Ready: null, ChangeVolume: number, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string, artist: string, name: string, duration: number}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
+ * @typedef { {playlistWindow: {event: {Ready: null, PlayRequsted: null, LoadTrack: { track: SpotifyTrack }}}, playerWindow: {event: {Ready: null, NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
  */
 
 /**

@@ -1,22 +1,27 @@
-use librespot::{
-    core::SpotifyId,
-    metadata::{audio::AudioItem, Track},
-};
+use librespot::{core::SpotifyId, metadata::Track};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, WebviewWindow};
 
 use crate::player;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct TrackData {
+pub struct TrackMetadata {
     uri: String,
     artist: String,
     name: String,
     duration: u32,
+    unavailable: bool,
 }
-impl TrackData {
-    pub fn new(track_id: SpotifyId, artist: &str, name: &str, duration: u32) -> Self {
+impl TrackMetadata {
+    pub fn new(
+        track_id: SpotifyId,
+        artist: &str,
+        name: &str,
+        duration: u32,
+        unavailable: bool,
+    ) -> Self {
         Self {
+            unavailable,
             uri: track_id.to_uri().expect("a valid uri"),
             artist: artist.to_string(),
             name: name.to_string(),
@@ -24,7 +29,7 @@ impl TrackData {
         }
     }
 }
-impl From<&Track> for TrackData {
+impl From<&Track> for TrackMetadata {
     fn from(track: &Track) -> Self {
         Self::new(
             track.id,
@@ -35,28 +40,7 @@ impl From<&Track> for TrackData {
                 .unwrap_or("Unknown Artist".to_string()),
             &track.name,
             track.duration as u32,
-        )
-    }
-}
-impl From<AudioItem> for TrackData {
-    fn from(value: AudioItem) -> Self {
-        let artist = match value.unique_fields {
-            librespot::metadata::audio::UniqueFields::Track { artists, .. } => artists
-                .iter()
-                .find(|artist_with_role| {
-                    matches!(
-                        artist_with_role.role,
-                        librespot::metadata::artist::ArtistRole::ARTIST_ROLE_MAIN_ARTIST
-                    )
-                })
-                .map(|artist_with_role| artist_with_role.name.clone()),
-            librespot::metadata::audio::UniqueFields::Episode { show_name, .. } => Some(show_name),
-        };
-        Self::new(
-            value.track_id,
-            &artist.unwrap_or("Unknown Artist".to_string()),
-            &value.name,
-            value.duration_ms,
+            !track.restrictions.is_empty() && track.alternatives.is_empty(),
         )
     }
 }
@@ -120,10 +104,10 @@ pub async fn stop() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn get_track(uri: &str) -> Result<TrackData, String> {
+pub async fn get_track_metadata(uri: &str) -> Result<TrackMetadata, String> {
     let spotify_player = &mut player().lock().await;
 
-    Ok(TrackData::from(
+    Ok(TrackMetadata::from(
         &spotify_player
             .get_track(
                 SpotifyId::from_uri(uri)

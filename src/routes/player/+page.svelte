@@ -54,21 +54,22 @@
   async function loadTrack(track) {
     loadedTrack = track;
     if (playerState == "playing" || playerState == "paused") {
+      playerState = "stopped";
       await play();
     }
   }
 
   async function play() {
-    if (loadedTrack) {
-      if (playerState == "stopped") {
-        playerState = "playing"; // To make the UI a bit snappier
-        await invoke("load_track", { uri: loadedTrack.uri.toString() }).catch(
-          handleError,
-        );
-      }
-    }
+    if (playerState == "paused") {
+      await invoke("play").catch(handleError);
+    } else if (loadedTrack) {
+      seekPosition = sliderSeekPosition = 0;
+      playerState = loadedTrack.unavailable ? "paused" : "playing";
 
-    await invoke("play").catch(handleError);
+      await invoke("load_track", { uri: loadedTrack?.uri.asString }).catch(
+        handleError,
+      );
+    }
   }
 
   async function pause() {
@@ -136,30 +137,30 @@
       }
     }, 1000);
 
+    const playlistWindowEventSubscription = subscribeToWindowEvent(
+      "playlistWindow",
+      (event) => {
+        if (event.LoadTrack) {
+          let { track } = event.LoadTrack;
+          loadTrack(track);
+        } else if (event.PlayRequsted !== undefined) {
+          play();
+        }
+      },
+    );
+
     const playerEventsSubscription = subscribeToWindowEvent(
       "player",
       (event) => {
         if (event.TrackChanged) {
-          let { uri, artist, name, duration } = event.TrackChanged;
-          const track = new SpotifyTrack(
-            artist,
-            name,
-            duration,
-            SpotifyUri.fromString(uri),
-          );
-          loadTrack(track);
-          seekPosition = 0;
+          let { uri } = event.TrackChanged;
         } else if (event.Playing) {
           let { position_ms } = event.Playing;
           playerState = "playing";
           seekPosition = position_ms;
         } else if (event.Paused) {
           let { position_ms } = event.Paused;
-          if (position_ms == 0) {
-            playerState = "stopped";
-          } else {
-            playerState = "paused";
-          }
+          playerState = "paused";
           seekPosition = position_ms;
         } else if (event.Stopped) {
           playerState = "stopped";
@@ -178,6 +179,7 @@
     return () => {
       clearInterval(tickerInterval);
       playerEventsSubscription.then((unlisten) => unlisten());
+      playlistWindowEventSubscription.then((unlisten) => unlisten());
     };
   });
 </script>

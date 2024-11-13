@@ -1,24 +1,73 @@
 // TODO: only import the type somehow
 import { invoke } from "@tauri-apps/api/core";
-import { enterExitViewportObserver, handleError, loadTrack, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
+import { emitWindowEvent, enterExitViewportObserver, handleError, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
+import memoize from "lodash.memoize";
 
 class PlaylistRow {
+    displayDuration = ""
     /**
-     * @type {SpotifyUri}
+     * @type {string}
      */
-    uri
+    displayName = $state("")
+    unavailable = false
+
+    /**
+     * @param {SpotifyUri} uri
+     * @param {Playlist} playlist
+     */
+    constructor(uri, playlist) {
+        this.uri = uri;
+        this.playlist = playlist;
+        this.displayName = uri.asString;
+    }
+
+    isLoaded() {
+        return false;
+    }
+
+    isSelected() {
+        return this.playlist.selectedRows.indexOf(this) != -1;
+    }
+
+    play() {
+        //noop
+    }
+
+    getOnEnterViewport() {
+        // NOTE: `this` is overridden with the HTMLElement when attaching event listeners to elements.
+        //       We capture `this` as `self` before returning the actual event callback so that we can access `this` in the callback.
+        const self = this;
+        /**
+         * @this HTMLElement
+         */
+        function eventCallback() {
+            enterExitViewportObserver.unobserve(this);
+            invoke("get_playlist_track_ids", { uri: self.uri.asString }).then((trackIds) => {
+                self.playlist.rows.splice(self.playlist.rows.indexOf(self), 1);
+                // Not sure why setTimeout is needed... Svelte bug?
+                setTimeout(() => {
+                    for (var trackId of trackIds) {
+                        self.playlist.addRow(SpotifyUri.fromString(trackId))
+                    }
+                }, 1);
+            }).catch((e) => {
+                self.displayName = `Failed to load playlist ${self.uri.id} (${e})`;
+            });
+
+        };
+        return eventCallback;
+    }
+}
+
+class TrackRow {
     /**
      * @type {SpotifyTrack | undefined}
      */
     track = $state()
-    loadingMessage = $state()
+    loadingMessage = $state("")
     displayName = $derived(this.track ? this.track.displayName : this.loadingMessage)
     displayDuration = $derived(this.track ? this.track.displayDuration : '')
-
-    /**
-     * @type {Promise<any> | undefined}
-     */
-    loadMetadataPromise
+    unavailable = $derived(this.track ? this.track.unavailable : false)
 
     /**
      * @param {SpotifyUri} uri
@@ -27,42 +76,22 @@ class PlaylistRow {
     constructor(uri, playlist) {
         this.playlist = playlist;
         this.uri = uri;
-        this.loadingMessage = `${this.uri}`;
-    }
-
-    loadMetadata() {
-        if (!this.loadMetadataPromise) {
-            console.info("load metadata for", this.uri.id);
-            this.loadMetadataPromise = new Promise((resolve, reject) => {
-                if (this.uri.type == "track") {
-                    loadTrack(this.uri).then((track) => {
-                        this.track = track;
-                        resolve(undefined);
-                    }).catch((e) => {
-                        console.error("Could not load track", this.uri.id, e);
-                        this.playlist.rows.splice(this.playlist.rows.indexOf(this));
-                        reject(e);
-                    });
-                } else if (this.uri.type == "playlist") {
-                    invoke("get_playlist_track_ids", { uri: this.uri.toString() }).then((trackIds) => {
-                        // Remove the loading-playlist-row
-                        this.playlist.rows.splice(this.playlist.rows.indexOf(this), 1);
-                        for (var trackId of trackIds) {
-                            this.playlist.addTrack(SpotifyUri.fromString(trackId))
-                        }
-                        resolve(undefined);
-                    }).catch((e) => {
-                        console.error("Could not load playlist", this.uri.id, e);
-                        this.playlist.rows.splice(this.playlist.rows.indexOf(this));
-                        reject(e);
-                    });
-                } else {
-                    reject(`Could not load track '${this.uri.id}'. Type '${this.uri.type}' is not supported`);
-                }
+        this.loadingMessage = `${this.uri.asString}`;
+        this.populateTrack = memoize(() => {
+            /**
+             * @type {Promise<SpotifyTrack>}
+             */
+            const promise = new Promise((resolve, reject) => {
+                SpotifyTrack.loadFromUri(this.uri).then((track) => {
+                    this.track = track;
+                    resolve(track);
+                }).catch((e) => {
+                    this.loadingMessage = `Failed to load track ${this.uri.id} (${e})`;
+                    reject(e);
+                });
             });
-
-        }
-        return this.loadMetadataPromise;
+            return promise;
+        });
     }
 
     getOnEnterViewport() {
@@ -70,29 +99,34 @@ class PlaylistRow {
         //       We capture `this` as `self` before returning the actual event callback so that we can access `this` in the callback.
         const self = this;
         /**
-         * @param {CustomEvent} event
          * @this HTMLElement
          */
-        function eventCallback(event) {
-            self.loadMetadata();
+        function eventCallback() {
             enterExitViewportObserver.unobserve(this);
+            self.populateTrack().catch((e) => {
+                console.warn(`Could not load metadata for ${self.uri.id}`, e);
+            });
         };
         return eventCallback;
-
     }
 
     async loadTrack() {
-        await this.loadMetadata();
-        if (this.track) {
-            this.playlist.loadedRow = this;
-            await invoke("load_track", { uri: this.track.uri.toString() }).catch(handleError);
+        try {
+            await this.populateTrack();
+            if (this.track) {
+                this.playlist.loadedRow = this;
+                await emitWindowEvent("playlistWindow", { LoadTrack: { track: this.track } });
+            }
+        } catch (e) {
+            console.warn(`Could not load track metadata for ${this.uri.id}`, e);
         }
     }
 
-    play() {
-        this.loadTrack().then(() => {
-            invoke("play", {}).catch(handleError);
-        });
+    async play() {
+        if (!this.track?.unavailable) {
+            await this.loadTrack();
+            await emitWindowEvent("playlistWindow", { PlayRequsted: null })
+        }
     }
 
     isLoaded() {
@@ -106,15 +140,15 @@ class PlaylistRow {
 
 export class Playlist {
     /**
-     * @type {PlaylistRow | undefined}
+     * @type {TrackRow | undefined}
      */
     loadedRow = $state();
     /**
-     * @type {PlaylistRow[]}
+     * @type {(TrackRow | PlaylistRow)[]}
      */
     rows = $state([]);
     /**
-     * @type {PlaylistRow[]}
+     * @type {(TrackRow | PlaylistRow)[]}
      */
     selectedRows = $state([]);
     constructor() {
@@ -168,19 +202,22 @@ export class Playlist {
     /**
      * @param {SpotifyUri} uri
      */
-    addTrack(uri) {
-        const row = new PlaylistRow(uri, this);
+    async addRow(uri) {
+        const row = uri.type == "playlist" ? new PlaylistRow(uri, this) : new TrackRow(uri, this);
         this.rows.push(row);
-        if (!this.loadedRow) {
-            row.loadTrack();
+        if (!this.loadedRow && row instanceof TrackRow) {
+            await row.loadTrack();
         }
     }
 
     playNext() {
         const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
         const nextRow = this.rows[currRowIndex + 1];
+
         if (nextRow) {
-            nextRow.loadTrack();
+            if (nextRow instanceof TrackRow) {
+                nextRow.loadTrack();
+            }
             return true;
         } else {
             return false;
@@ -190,7 +227,9 @@ export class Playlist {
     playPrevious() {
         const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
         const previousRow = this.rows[currRowIndex - 1];
-        previousRow?.loadTrack();
+        if (previousRow instanceof TrackRow) {
+            previousRow.loadTrack();
+        }
     }
 
 }
