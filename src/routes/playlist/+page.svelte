@@ -167,6 +167,7 @@
   }
   /* ------ TRACKS ------ */
   .tracks-container {
+    background-color: black;
     --track-row-height: 14.5px;
     margin-top: calc(20px * var(--zoom));
     margin-left: calc(10px * var(--zoom));
