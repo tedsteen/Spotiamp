@@ -20,7 +20,7 @@
         margin: 0;
         height: 100%;
         overflow: hidden;
-        background-color: transparent;
+        background-color: black;
     }
 
     :global(.sprite) {

@@ -170,7 +170,7 @@ pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, 
     #[cfg(target_os = "windows")]
     let (width, height) = fix_window_size(width, height);
 
-    let window_builder = tauri::WebviewWindowBuilder::new(
+    tauri::WebviewWindowBuilder::new(
         app_handle,
         "player",
         tauri::WebviewUrl::App("player".into()),
@@ -178,17 +178,12 @@ pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, 
     .title("Player")
     .inner_size(width, height)
     .decorations(false)
-    .shadow(false);
-
-    #[cfg(target_os = "windows")]
-    let window_builder = { window_builder.transparent(true) };
-
-    window_builder
-        .closable(false)
-        .maximizable(false)
-        .minimizable(false)
-        .resizable(false)
-        .disable_drag_drop_handler()
-        .accept_first_mouse(true)
-        .build()
+    .shadow(false)
+    .closable(false)
+    .maximizable(false)
+    .minimizable(false)
+    .resizable(false)
+    .disable_drag_drop_handler()
+    .accept_first_mouse(true)
+    .build()
 }

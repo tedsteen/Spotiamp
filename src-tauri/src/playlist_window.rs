@@ -11,25 +11,16 @@ pub fn build_window(
     #[cfg(target_os = "windows")]
     let (width, height) = crate::player_window::fix_window_size(width, height);
 
-    let window_builder = tauri::WebviewWindowBuilder::new(
-        app,
-        "playlist",
-        tauri::WebviewUrl::App("playlist".into()),
-    )
-    .title("Playlist")
-    .inner_size(width, height)
-    .decorations(false)
-    .shadow(false)
-    .closable(false)
-    .maximizable(false)
-    .minimizable(false)
-    .shadow(false)
-    .resizable(false);
-
-    #[cfg(target_os = "windows")]
-    let window_builder = { window_builder.transparent(true) };
-
-    window_builder
+    tauri::WebviewWindowBuilder::new(app, "playlist", tauri::WebviewUrl::App("playlist".into()))
+        .title("Playlist")
+        .inner_size(width, height)
+        .decorations(false)
+        .shadow(false)
+        .closable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .shadow(false)
+        .resizable(false)
         .position(position.x, position.y)
         .disable_drag_drop_handler()
         .accept_first_mouse(true)
