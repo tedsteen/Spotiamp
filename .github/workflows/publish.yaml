@@ -36,7 +36,7 @@ jobs:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install frontend dependencies
-        run: yarn install
+        run: npm install
 
       - uses: apple-actions/import-codesign-certs@v3
         if: matrix.platform == 'macos-latest'
