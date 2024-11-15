@@ -73,6 +73,7 @@ export class Visualizer {
     }
 
     runVisualizerUpdate() {
+        this.lastTick = Date.now();
         if (this.running) {
             const now = Date.now();
             const deltaTime = now - this.lastTick;
