@@ -73,7 +73,6 @@ export class Visualizer {
     }
 
     runVisualizerUpdate() {
-        this.lastTick = Date.now();
         if (this.running) {
             const now = Date.now();
             const deltaTime = now - this.lastTick;
@@ -103,8 +102,8 @@ export class Visualizer {
 
     start() {
         this.running = true;
-        this.lastTick = Date.now();
         // Start the update "loop" using requestAnimationFrame to move forward
+        this.lastTick = Date.now();
         this.runVisualizerUpdate();
     }
 
