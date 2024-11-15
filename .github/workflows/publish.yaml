@@ -2,8 +2,8 @@ name: "publish"
 
 on:
   push:
-    branches:
-      - 'master'
+    tags:
+      - 'v*'
 
 jobs:
   publish-tauri:
@@ -17,6 +17,7 @@ jobs:
             args: "--target aarch64-apple-darwin"
           - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
+          - platform: "windows-latest"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -37,11 +38,13 @@ jobs:
         run: yarn install
 
       - uses: apple-actions/import-codesign-certs@v3
+        if: matrix.platform == 'macos-latest'
         with: 
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
       
       - name: Verify Certificate
+        if: matrix.platform == 'macos-latest'
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning signing_temp.keychain | grep "Developer ID Application")
           APPLE_SIGNING_IDENTITY=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
