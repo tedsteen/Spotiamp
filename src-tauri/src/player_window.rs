@@ -155,15 +155,20 @@ pub fn set_playlist_window_visible(visible: bool, app: AppHandle) {
     }
 }
 
+#[cfg(target_os = "windows")]
+pub fn fix_window_size(width: f64, height: f64) -> (f64, f64) {
+    // Compensate for the missing titlebar and something on the width on Windows.
+    // TODO: Wait for https://github.com/tauri-apps/tauri/issues/6333 to be
+    //       fixed or somehow figure out what the actual compensation should be.
+    //       It will probably differ between environments..
+    (width - 13.0, height - 36.0)
+}
+
 pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, tauri::Error> {
     let height = 116.0 * zoom;
     let width = 275.0 * zoom;
     #[cfg(target_os = "windows")]
-    let (width, height) = {
-        // Compensate for missing titlebar and something on the width. See https://github.com/tauri-apps/tauri/issues/6333
-        // TODO: Figure out actual compensation, this is probably going to differ between users
-        (width - 13.0, height - 36.0)
-    };
+    let (width, height) = fix_window_size(width, height);
 
     let window_builder = tauri::WebviewWindowBuilder::new(
         app_handle,

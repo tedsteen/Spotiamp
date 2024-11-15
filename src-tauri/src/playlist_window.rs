@@ -7,12 +7,9 @@ pub fn build_window(
 ) -> Result<WebviewWindow, tauri::Error> {
     let height = 116.0 * zoom;
     let width = 275.0 * zoom;
+
     #[cfg(target_os = "windows")]
-    let (width, height) = {
-        // Compensate for missing titlebar and something on the width. See https://github.com/tauri-apps/tauri/issues/6333
-        // TODO: Figure out actual compensation, this is probably going to differ between users
-        (width - 13.0, height - 36.0)
-    };
+    let (width, height) = crate::player_window::fix_window_size(width, height);
 
     let window_builder = tauri::WebviewWindowBuilder::new(
         app,
@@ -26,6 +23,7 @@ pub fn build_window(
     .closable(false)
     .maximizable(false)
     .minimizable(false)
+    .shadow(false)
     .resizable(false);
 
     #[cfg(target_os = "windows")]
