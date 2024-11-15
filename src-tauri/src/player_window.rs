@@ -162,7 +162,7 @@ pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, 
     let (width, height) = {
         // Compensate for missing titlebar and something on the width. See https://github.com/tauri-apps/tauri/issues/6333
         // TODO: Figure out actual compensation, this is probably going to differ between users
-        (width - 12.0, height - 35.0)
+        (width - 13.0, height - 36.0)
     };
 
     let window_builder = tauri::WebviewWindowBuilder::new(
@@ -172,7 +172,8 @@ pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, 
     )
     .title("Player")
     .inner_size(width, height)
-    .decorations(false);
+    .decorations(false)
+    .shadow(false);
 
     #[cfg(target_os = "windows")]
     let window_builder = { window_builder.transparent(true) };
