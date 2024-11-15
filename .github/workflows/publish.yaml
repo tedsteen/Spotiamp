@@ -2,11 +2,12 @@ name: "publish"
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: '*'
+    # tags:
+    #   - 'v*'
 
 jobs:
-  publish-tauri:
+  bundle:
     permissions:
       contents: write
     strategy:
@@ -52,6 +53,7 @@ jobs:
           echo "Certificate imported."
 
       - uses: tauri-apps/tauri-action@v0
+        id: tauri-build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -60,8 +62,27 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          tagName: spotiamp-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: "Spotiamp v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          prerelease: false
           args: ${{ matrix.args }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ${{ steps.tauri-build.outputs.artifactPaths }}
+
+  release:
+    name: Release
+    needs: bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: "artifacts/*"
