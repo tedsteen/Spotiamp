@@ -36,4 +36,8 @@
     :global(.hidden) {
         display: none;
     }
+
+    :global(*:focus) {
+        outline: 0 !important;
+    }
 </style>
