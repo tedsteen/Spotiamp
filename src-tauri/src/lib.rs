@@ -47,6 +47,7 @@ enum SpotiampPlayerEvent {
 #[derive(Clone, Deserialize)]
 enum PlayerWindowEvent {
     Ready,
+    CloseRequested,
 }
 
 #[derive(Clone, Deserialize)]
@@ -126,6 +127,9 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
     app_handle.clone().listen("playerWindow", move |event| {
         match serde_json::from_str::<PlayerWindowEvent>(event.payload()) {
             Ok(e) => match e {
+                PlayerWindowEvent::CloseRequested => {
+                    std::process::exit(0);
+                }
                 PlayerWindowEvent::Ready => {
                     if app_handle.get_webview_window("playlist").is_none() {
                         let mut playlist_position = player_window

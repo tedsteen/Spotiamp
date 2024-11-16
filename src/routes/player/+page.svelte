@@ -219,6 +219,13 @@
     class="sprite titlebar-sprite"
     id="titlebar"
   ></div>
+
+  <button
+    class="sprite close-btn"
+    onclick={() => emitWindowEvent("playerWindow", { CloseRequested: null })}
+    aria-label="Close Spotiamp"
+  ></button>
+
   <TextTicker
     unavailable={playerState == "unavailable"}
     text={loadedTrack
@@ -342,6 +349,20 @@
 </main>
 
 <style>
+  button.close-btn {
+    cursor: url(/src/static/assets/skins/base-2.91/CLOSE.CUR), default;
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-x: 264px;
+    --sprite-y: 3px;
+    width: 9px;
+    height: 9px;
+    background-position: -18px 0px;
+  }
+
+  button.close-btn:active {
+    background-position-y: -9px;
+  }
+
   button.playlist-btn {
     --sprite-url: url(/src/static/assets/skins/base-2.91/SHUFREP.BMP);
     --sprite-x: 242px;
