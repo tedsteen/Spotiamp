@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          path: artifacts/
+          path: artifacts/*
 
   release:
     name: Release
