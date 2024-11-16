@@ -19,6 +19,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: Spotiamp ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
           draft: true
           prerelease: false
           generate_release_notes: true
