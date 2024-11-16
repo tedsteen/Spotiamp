@@ -1,19 +1,15 @@
 use tauri::{AppHandle, LogicalPosition, WebviewWindow};
 
+use crate::PLAYER_SIZE;
+
 pub fn build_window(
     app: &AppHandle,
     zoom: f64,
     position: LogicalPosition<f64>,
 ) -> Result<WebviewWindow, tauri::Error> {
-    let height = 116.0 * zoom;
-    let width = 275.0 * zoom;
-
-    #[cfg(target_os = "windows")]
-    let (width, height) = crate::player_window::fix_window_size(width, height);
-
     tauri::WebviewWindowBuilder::new(app, "playlist", tauri::WebviewUrl::App("playlist".into()))
         .title("Playlist")
-        .inner_size(width, height)
+        .inner_size(PLAYER_SIZE.0 * zoom, PLAYER_SIZE.1 * zoom)
         .decorations(false)
         .shadow(false)
         .closable(false)

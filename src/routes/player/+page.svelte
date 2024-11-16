@@ -14,6 +14,7 @@
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
   import { Visualizer } from "$lib/visualizer.svelte";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data } = $props();
@@ -219,6 +220,18 @@
     class="sprite titlebar-sprite"
     id="titlebar"
   ></div>
+
+  <button
+    class="sprite close-btn"
+    onclick={() => emitWindowEvent("playerWindow", { CloseRequested: null })}
+    aria-label="Close"
+  ></button>
+  <button
+    class="sprite minimize-btn"
+    onclick={() => getCurrentWindow().minimize()}
+    aria-label="Minimize"
+  ></button>
+
   <TextTicker
     unavailable={playerState == "unavailable"}
     text={loadedTrack
@@ -342,6 +355,34 @@
 </main>
 
 <style>
+  button.close-btn {
+    cursor: url(/src/static/assets/skins/base-2.91/CLOSE.CUR), default;
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-x: 264px;
+    --sprite-y: 3px;
+    width: 9px;
+    height: 9px;
+    background-position: -18px 0px;
+  }
+
+  button.close-btn:active {
+    background-position-y: -9px;
+  }
+
+  button.minimize-btn {
+    cursor: url(/src/static/assets/skins/base-2.91/MAINMENU.CUR), auto;
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-x: 244px;
+    --sprite-y: 3px;
+    width: 9px;
+    height: 9px;
+    background-position: -9px 0px;
+  }
+
+  button.minimize-btn:active {
+    background-position-y: -9px;
+  }
+
   button.playlist-btn {
     --sprite-url: url(/src/static/assets/skins/base-2.91/SHUFREP.BMP);
     --sprite-x: 242px;

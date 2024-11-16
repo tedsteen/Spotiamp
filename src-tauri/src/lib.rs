@@ -14,6 +14,7 @@ mod sink;
 mod spotify;
 mod visualizer;
 
+pub const PLAYER_SIZE: (f64, f64) = (275.0, 116.0);
 pub fn player() -> &'static Mutex<SpotifyPlayer> {
     static MEM: OnceLock<Mutex<SpotifyPlayer>> = OnceLock::new();
     MEM.get_or_init(|| Mutex::new(SpotifyPlayer::new()))
@@ -46,6 +47,7 @@ enum SpotiampPlayerEvent {
 #[derive(Clone, Deserialize)]
 enum PlayerWindowEvent {
     Ready,
+    CloseRequested,
 }
 
 #[derive(Clone, Deserialize)]
@@ -125,6 +127,9 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
     app_handle.clone().listen("playerWindow", move |event| {
         match serde_json::from_str::<PlayerWindowEvent>(event.payload()) {
             Ok(e) => match e {
+                PlayerWindowEvent::CloseRequested => {
+                    std::process::exit(0);
+                }
                 PlayerWindowEvent::Ready => {
                     if app_handle.get_webview_window("playlist").is_none() {
                         let mut playlist_position = player_window
