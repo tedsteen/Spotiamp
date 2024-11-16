@@ -19,6 +19,5 @@ pnpx tauri-version major # `v0.0.2` -> `v1.0.0` - Commit message `1.0.0`
 
 ## Trigger release (run the publish workflow)
 ```bash
-git tag -a v[version number]
-git push --tags
+git push origin tag v[version number]
 ```
