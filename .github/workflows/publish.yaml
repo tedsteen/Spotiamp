@@ -67,12 +67,12 @@ jobs:
         run: |
           mkdir artifacts
           echo '${{ steps.tauri-build.outputs.artifactPaths }}' | jq -c -r '.[]' | while read i; do
-              cp $i artifacts/
+              cp -a $i artifacts/
           done
 
       - uses: actions/upload-artifact@v4
         with:
-          path: artifacts/*
+          path: artifacts/
 
   release:
     name: Release
@@ -91,4 +91,4 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          files: "artifacts/*"
+          files: "artifacts/"
