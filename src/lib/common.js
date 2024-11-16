@@ -1,9 +1,23 @@
 import { invoke } from '@tauri-apps/api/core';
 import { message } from '@tauri-apps/plugin-dialog';
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { emit, } from "@tauri-apps/api/event";
 
-export const ORIGINAL_ZOOM = window.innerWidth / 275.0;
+const PLAYER_SIZE = { width: 275.0, height: 116.0 };
+let xZoom = window.innerWidth / PLAYER_SIZE.width;
+let yZoom = window.innerHeight / PLAYER_SIZE.height;
+// TODO: This is a hack to correct the window size on windows when setting the inner size doesn't work.
+//       Wait for https://github.com/tauri-apps/tauri/issues/6333 and then remove this hack.
+if (!Number.isInteger(xZoom) || !Number.isInteger(yZoom)) {
+    const xZoomDiff = Math.round(xZoom) - xZoom,
+        yZoomDiff = Math.round(yZoom) - yZoom;
+    xZoom = Math.round(xZoom + xZoomDiff);
+    yZoom = Math.round(yZoom + yZoomDiff);
+
+    getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width * xZoom, PLAYER_SIZE.height * yZoom));
+}
+
+export const ORIGINAL_ZOOM = xZoom;
 export class MMSS {
     /**
      * @param {number} m 

@@ -14,6 +14,7 @@ mod sink;
 mod spotify;
 mod visualizer;
 
+pub const PLAYER_SIZE: (f64, f64) = (275.0, 116.0);
 pub fn player() -> &'static Mutex<SpotifyPlayer> {
     static MEM: OnceLock<Mutex<SpotifyPlayer>> = OnceLock::new();
     MEM.get_or_init(|| Mutex::new(SpotifyPlayer::new()))
