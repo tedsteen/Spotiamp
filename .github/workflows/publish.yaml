@@ -66,7 +66,7 @@ jobs:
       - name: Extract artifacts
         run: |
           mkdir artifacts
-          echo '${{ steps.tauri-build.outputs.artifactPaths }}]' | jq -c '.[]' | while read i; do
+          echo '${{ steps.tauri-build.outputs.artifactPaths }}' | jq -c '.[]' | while read i; do
               cp $i artifacts/
           done
 
