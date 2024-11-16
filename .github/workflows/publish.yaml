@@ -2,9 +2,8 @@ name: "publish"
 
 on:
   push:
-    branches: '*'
-    # tags:
-    #   - 'v*'
+    tags:
+      - 'v*'
 
 jobs:
   bundle:
