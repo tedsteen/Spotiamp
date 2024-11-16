@@ -19,7 +19,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: Spotiamp ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
+          tag_name: spotiamp-${{ github.ref_name }}
           draft: true
           prerelease: false
           generate_release_notes: true
@@ -80,7 +80,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          tagName: ${{ github.ref_name }}
+          tagName: spotiamp-${{ github.ref_name }}
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
   
