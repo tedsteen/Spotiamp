@@ -1,6 +1,4 @@
 <script>
-    import { ORIGINAL_ZOOM, setZoom } from "$lib/common.js";
-    setZoom(ORIGINAL_ZOOM);
 </script>
 
 <slot />

@@ -155,14 +155,14 @@ pub fn set_playlist_window_visible(visible: bool, app: AppHandle) {
     }
 }
 
-pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, tauri::Error> {
+pub fn build_window(app_handle: &AppHandle) -> Result<WebviewWindow, tauri::Error> {
     tauri::WebviewWindowBuilder::new(
         app_handle,
         "player",
         tauri::WebviewUrl::App("player".into()),
     )
     .title("Player")
-    .inner_size(PLAYER_SIZE.0 * zoom, PLAYER_SIZE.1 * zoom)
+    .inner_size(PLAYER_SIZE.0, PLAYER_SIZE.1)
     .decorations(false)
     .shadow(false)
     .closable(false)

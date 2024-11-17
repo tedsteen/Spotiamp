@@ -3,21 +3,32 @@ import { message } from '@tauri-apps/plugin-dialog';
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { emit, } from "@tauri-apps/api/event";
 
-const PLAYER_SIZE = { width: 275.0, height: 116.0 };
-let xZoom = window.innerWidth / PLAYER_SIZE.width;
-let yZoom = window.innerHeight / PLAYER_SIZE.height;
-// TODO: This is a hack to correct the window size on windows when setting the inner size doesn't work.
-//       Wait for https://github.com/tauri-apps/tauri/issues/6333 and then remove this hack.
-if (!Number.isInteger(xZoom) || !Number.isInteger(yZoom)) {
-    const xZoomDiff = Math.round(xZoom) - xZoom,
-        yZoomDiff = Math.round(yZoom) - yZoom;
-    xZoom = Math.round(xZoom + xZoomDiff);
-    yZoom = Math.round(yZoom + yZoomDiff);
-
-    getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width * xZoom, PLAYER_SIZE.height * yZoom));
+export const PLAYER_SIZE = { width: 275.0, height: 116.0 };
+// TODO: This is used to correct tauris' broken inner size on the window.
+//       Wait for https://github.com/tauri-apps/tauri/issues/6333 to be fixed and then remove this hack.
+let widthCompensation = 0, heightCompensation = 0;
+if (window.innerWidth / PLAYER_SIZE.width != 1 || window.innerHeight / PLAYER_SIZE.height != 1) {
+    // Reset size in case there is a zoom
+    getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width, PLAYER_SIZE.height)).then(() => {
+        widthCompensation = PLAYER_SIZE.width - window.innerWidth;
+        heightCompensation = PLAYER_SIZE.height - window.innerHeight;
+        if (widthCompensation != 0 || heightCompensation != 0) {
+            console.info("Compensating for wrong inner size", widthCompensation, heightCompensation);
+            getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width + widthCompensation, PLAYER_SIZE.height + heightCompensation));
+        }
+    })
 }
 
-export const ORIGINAL_ZOOM = xZoom;
+/**
+ * @param {number} zoom 
+ */
+export async function setZoom(zoom) {
+    console.info("Setting zoom", zoom);
+    await getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width * zoom + widthCompensation, PLAYER_SIZE.height * zoom + heightCompensation)).then(() => {
+        document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
+    });
+}
+
 export class MMSS {
     /**
      * @param {number} m 
@@ -146,14 +157,6 @@ SpotifyTrack.loadFromUri = async function (uri) {
      */
     const trackData = await invoke("get_track_metadata", { uri: uri.asString });
     return new SpotifyTrack(trackData.artist, trackData.name, trackData.duration, uri, trackData.unavailable);
-}
-
-
-/**
- * @param {number} zoom 
- */
-export function setZoom(zoom) {
-    document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
 }
 
 /**

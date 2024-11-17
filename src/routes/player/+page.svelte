@@ -9,6 +9,7 @@
     handleError,
     subscribeToWindowEvent,
     handleDrop,
+    setZoom,
   } from "$lib/common.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
@@ -28,6 +29,7 @@
   let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
   let showPlaylist = $state(true);
+  let doubleSizeActive = $state(false);
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */
@@ -123,6 +125,10 @@
     invoke("set_playlist_window_visible", {
       visible: showPlaylist,
     }).catch(handleError);
+  });
+
+  $effect(() => {
+    setZoom(doubleSizeActive ? 2 : 1);
   });
 
   onMount(() => {
@@ -230,6 +236,14 @@
     class="sprite minimize-btn"
     onclick={() => getCurrentWindow().minimize()}
     aria-label="Minimize"
+  ></button>
+
+  <div class="sprite side-buttons"></div>
+  <button
+    class="sprite double-size-btn"
+    onclick={() => (doubleSizeActive = !doubleSizeActive)}
+    class:active={doubleSizeActive}
+    aria-label="Toggle double size"
   ></button>
 
   <TextTicker
@@ -381,6 +395,28 @@
 
   button.minimize-btn:active {
     background-position-y: -9px;
+  }
+
+  .side-buttons {
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-x: 10px;
+    --sprite-y: 22px;
+    width: 8px;
+    height: 43px;
+    background-position: -304px 0px;
+  }
+
+  button.double-size-btn {
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-x: 10px;
+    --sprite-y: 48px;
+    width: 8px;
+    height: 8px;
+    background-position: -328px -70px;
+    opacity: 0;
+  }
+  button.double-size-btn.active {
+    opacity: 1;
   }
 
   button.playlist-btn {

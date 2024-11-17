@@ -61,14 +61,12 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
         .await
         .map_err(|e| StartError::LoginFailed { e })?;
 
-    let zoom = 2.0;
     let mut channel = p.get_player_event_channel();
-    let player_window = player_window::build_window(app_handle, zoom).map_err(|e| {
-        StartError::WindowCreationFailed {
+    let player_window =
+        player_window::build_window(app_handle).map_err(|e| StartError::WindowCreationFailed {
             window_name: "Player".to_string(),
             e,
-        }
-    })?;
+        })?;
     let player_window_ref = player_window.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(player_event) = channel.recv().await {
@@ -141,7 +139,6 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
                             .height as i32;
                         playlist_window::build_window(
                             &app_handle,
-                            zoom,
                             playlist_position.to_logical(
                                 player_window
                                     .scale_factor()

@@ -2,17 +2,13 @@
   import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
   import {
     enterExitViewport,
-    setZoom,
     range,
     handleDrop,
     emitWindowEvent,
   } from "$lib/common.js";
   import { onMount } from "svelte";
   import { Playlist } from "$lib/playlist.svelte";
-
   const ZOOM = 1;
-  setZoom(ZOOM);
-
   let playlistWidth = $state(Math.ceil(window.innerWidth / ZOOM / 25));
   let playlistHeight = $state(Math.ceil(window.innerHeight / ZOOM / 29));
   const playlist = new Playlist();
