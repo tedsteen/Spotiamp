@@ -7,23 +7,24 @@ export const PLAYER_SIZE = { width: 275.0, height: 116.0 };
 // TODO: This is used to correct tauris' broken inner size on the window.
 //       Wait for https://github.com/tauri-apps/tauri/issues/6333 to be fixed and then remove this hack.
 let widthCompensation = 0, heightCompensation = 0;
-if (window.innerWidth / PLAYER_SIZE.width != 1 || window.innerHeight / PLAYER_SIZE.height != 1) {
-    // Reset size in case there is a zoom
-    getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width, PLAYER_SIZE.height)).then(() => {
+export async function adjustInnerSize() {
+    if (window.innerWidth / PLAYER_SIZE.width != 1 || window.innerHeight / PLAYER_SIZE.height != 1) {
+        // Reset size in case there is a zoom
+        await getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width, PLAYER_SIZE.height));
+
         widthCompensation = PLAYER_SIZE.width - window.innerWidth;
         heightCompensation = PLAYER_SIZE.height - window.innerHeight;
         if (widthCompensation != 0 || heightCompensation != 0) {
             console.info("Compensating for wrong inner size", widthCompensation, heightCompensation);
-            getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width + widthCompensation, PLAYER_SIZE.height + heightCompensation));
+            await getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width + widthCompensation, PLAYER_SIZE.height + heightCompensation));
         }
-    })
+    }
 }
 
 /**
  * @param {number} zoom 
  */
 export async function setZoom(zoom) {
-    console.info("Setting zoom", zoom);
     await getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width * zoom + widthCompensation, PLAYER_SIZE.height * zoom + heightCompensation)).then(() => {
         document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
     });

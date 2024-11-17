@@ -1,7 +1,10 @@
 <script>
+    import { adjustInnerSize } from "$lib/common";
 </script>
 
-<slot />
+{#await adjustInnerSize() then}
+    <slot />
+{/await}
 
 <style>
     :global(*) {
