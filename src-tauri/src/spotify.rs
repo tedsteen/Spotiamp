@@ -135,6 +135,7 @@ impl SpotifyPlayer {
         .title("Login")
         .inner_size(600.0, 800.0)
         .closable(true)
+        .maximizable(false)
         .resizable(false)
         .build()
         .map_err(|e| SessionError::OpenURLFailed { url: auth_url, e })?;
