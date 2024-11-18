@@ -118,8 +118,7 @@ impl OAuthFlow {
                      State(mut tx): State<Option<Sender<AuthorizationCode>>>| async move {
                         if let Some(tx) = tx.take() {
                             let _ = tx.send(AuthorizationCode::new(params.code));
-                            Html("<script>window.__TAURI__.window.getCurrentWindow().close();</script>")
-                                .into_response()
+                            Html("<body></body>").into_response()
                         } else {
                             (
                                 StatusCode::INTERNAL_SERVER_ERROR,

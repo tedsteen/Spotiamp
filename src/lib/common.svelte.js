@@ -1,23 +1,32 @@
 import { invoke } from '@tauri-apps/api/core';
 import { message } from '@tauri-apps/plugin-dialog';
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emit, } from "@tauri-apps/api/event";
 
-const PLAYER_SIZE = { width: 275.0, height: 116.0 };
-let xZoom = window.innerWidth / PLAYER_SIZE.width;
-let yZoom = window.innerHeight / PLAYER_SIZE.height;
-// TODO: This is a hack to correct the window size on windows when setting the inner size doesn't work.
-//       Wait for https://github.com/tauri-apps/tauri/issues/6333 and then remove this hack.
-if (!Number.isInteger(xZoom) || !Number.isInteger(yZoom)) {
-    const xZoomDiff = Math.round(xZoom) - xZoom,
-        yZoomDiff = Math.round(yZoom) - yZoom;
-    xZoom = Math.round(xZoom + xZoomDiff);
-    yZoom = Math.round(yZoom + yZoomDiff);
+class ReactiveWindowSize {
+    width = $state(275.0)
+    height = $state(116.0)
+    zoom = $state(1.0)
 
-    getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width * xZoom, PLAYER_SIZE.height * yZoom));
+    /**
+     * @param {number} width
+     * @param {number} height
+     */
+    setSize(width, height) {
+        this.width = width;
+        this.height = height;
+    }
+
+    /**
+     * @param {number} zoom
+     */
+    setZoom(zoom) {
+        this.zoom = zoom;
+        document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
+    }
 }
+export const REACTIVE_WINDOW_SIZE = new ReactiveWindowSize();
 
-export const ORIGINAL_ZOOM = xZoom;
 export class MMSS {
     /**
      * @param {number} m 
@@ -148,14 +157,6 @@ SpotifyTrack.loadFromUri = async function (uri) {
     return new SpotifyTrack(trackData.artist, trackData.name, trackData.duration, uri, trackData.unavailable);
 }
 
-
-/**
- * @param {number} zoom 
- */
-export function setZoom(zoom) {
-    document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
-}
-
 /**
  * @param {number} start 
  * @param {number} end 
@@ -219,7 +220,7 @@ export function handleDrop(urlCallback) {
 }
 
 /**
- * @typedef { {playlistWindow: {event: {Ready: null, PlayRequsted: null, TrackLoaded: SpotifyTrack, EndReached: null}}, playerWindow: {event: {Ready: null, CloseRequested: null, UrlsDropped: string[], NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
+ * @typedef { {playlistWindow: {event: {Ready: null, PlayRequsted: null, TrackLoaded: SpotifyTrack, EndReached: null}}, playerWindow: {event: {CloseRequested: null, UrlsDropped: string[], NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
  */
 
 /**
@@ -241,3 +242,24 @@ const CURRENT_WINDOW = getCurrentWindow();
 export async function subscribeToWindowEvent(key, callback) {
     return await CURRENT_WINDOW.listen(key, (event) => { callback(event.payload) });
 }
+
+/**
+ * @typedef {{ width: number, height: number }} WindowInnerSize
+ */
+
+/**
+ * @typedef {{ width: number, height: number }} WindowOuterPosition
+ */
+
+
+/**
+ * @typedef {{ inner_size: WindowInnerSize | null, outer_position: WindowOuterPosition | null }} WindowState
+ */
+
+/**
+ * @typedef {{ volume: number, double_size_active: boolean, show_playlist: boolean, window_state: WindowState }} PlayerSettings
+ */
+
+/**
+ * @typedef {{ uris: string[], window_state: WindowState }} PlaylistSettings
+ */

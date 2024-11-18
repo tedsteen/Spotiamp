@@ -9,7 +9,8 @@
     handleError,
     subscribeToWindowEvent,
     handleDrop,
-  } from "$lib/common.js";
+    REACTIVE_WINDOW_SIZE,
+  } from "$lib/common.svelte.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
@@ -17,17 +18,17 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
 
   /** @type {{data: import('./$types').PageData}} */
-  const { data } = $props();
-  const { initialVolume } = data;
+  const { data: playerSettings } = $props();
 
   /**
    * @type {SpotifyTrack | undefined}
    */
   let loadedTrack = $state();
-  let volume = $state(initialVolume);
+  let volume = $state(playerSettings.volume);
   let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
-  let showPlaylist = $state(true);
+  let showPlaylist = $state(playerSettings.show_playlist);
+  let doubleSizeActive = $state(playerSettings.double_size_active);
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */
@@ -125,6 +126,11 @@
     }).catch(handleError);
   });
 
+  $effect(() => {
+    invoke("set_double_size", { active: doubleSizeActive });
+    REACTIVE_WINDOW_SIZE.setZoom(doubleSizeActive ? 2 : 1);
+  });
+
   onMount(() => {
     // Tick seek position and blink number display
     const tickerInterval = setInterval(() => {
@@ -145,15 +151,6 @@
           play();
         } else if (event.EndReached !== undefined) {
           stop();
-        } else if (event.Ready !== undefined) {
-          emitWindowEvent("playerWindow", {
-            UrlsDropped: [
-              "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
-              "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
-              "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
-              "https://open.spotify.com/playlist/2zKOYCC7MRak6klBtBCO5G",
-            ],
-          });
         }
       },
     );
@@ -187,7 +184,6 @@
       emitWindowEvent("playerWindow", { UrlsDropped: urls });
     });
 
-    emitWindowEvent("playerWindow", { Ready: null });
     return () => {
       clearInterval(tickerInterval);
       playerEventsSubscription.then((unlisten) => unlisten());
@@ -230,6 +226,14 @@
     class="sprite minimize-btn"
     onclick={() => getCurrentWindow().minimize()}
     aria-label="Minimize"
+  ></button>
+
+  <div class="sprite side-buttons"></div>
+  <button
+    class="sprite double-size-btn"
+    onclick={() => (doubleSizeActive = !doubleSizeActive)}
+    class:active={doubleSizeActive}
+    aria-label="Toggle double size"
   ></button>
 
   <TextTicker
@@ -381,6 +385,28 @@
 
   button.minimize-btn:active {
     background-position-y: -9px;
+  }
+
+  .side-buttons {
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-x: 10px;
+    --sprite-y: 22px;
+    width: 8px;
+    height: 43px;
+    background-position: -304px 0px;
+  }
+
+  button.double-size-btn {
+    --sprite-url: url(/src/static/assets/skins/base-2.91/TITLEBAR.BMP);
+    --sprite-x: 10px;
+    --sprite-y: 48px;
+    width: 8px;
+    height: 8px;
+    background-position: -328px -70px;
+    opacity: 0;
+  }
+  button.double-size-btn.active {
+    opacity: 1;
   }
 
   button.playlist-btn {

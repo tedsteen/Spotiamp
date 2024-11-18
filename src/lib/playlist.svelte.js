@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { emitWindowEvent, enterExitViewportObserver, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common";
+import { emitWindowEvent, enterExitViewportObserver, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common.svelte";
 import memoize from "lodash.memoize";
 
 class MultiTrackRow {
@@ -224,7 +224,9 @@ export class Playlist {
      */
     async addUrls(urls) {
         for (const url of urls) {
-            await this.addRow(SpotifyUri.fromUrl(url));
+            const uri = SpotifyUri.fromUrl(url);
+            await this.addRow(uri);
+            invoke("add_uri", { uri: uri.asString })
         }
     }
 

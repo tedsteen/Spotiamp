@@ -2,7 +2,10 @@ use librespot::{core::SpotifyId, metadata::Track};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, WebviewWindow};
 
-use crate::{player, PLAYER_SIZE};
+use crate::{
+    player, playlist_window,
+    settings::{PlayerSettings, Settings},
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TrackMetadata {
@@ -46,14 +49,20 @@ impl From<&Track> for TrackMetadata {
 }
 
 #[tauri::command]
-pub async fn get_volume() -> Result<u16, ()> {
-    Ok(player().lock().await.get_volume())
+pub fn get_player_settings() -> PlayerSettings {
+    Settings::current().player.clone()
 }
 
 #[tauri::command]
 pub async fn set_volume(volume: u16) -> Result<(), ()> {
     player().lock().await.set_volume(volume);
+    Settings::current_mut().player.volume = volume;
     Ok(())
+}
+
+#[tauri::command]
+pub fn set_double_size(active: bool) {
+    Settings::current_mut().player.double_size_active = active;
 }
 
 #[tauri::command]
@@ -142,27 +151,57 @@ pub async fn seek(position_ms: u32) -> Result<(), String> {
     Ok(())
 }
 
+//NOTE: The command needs to be async for Windows to be able to create new windows in it.
+//      See https://github.com/tauri-apps/tauri/issues/4121 for details
 #[tauri::command]
-pub fn set_playlist_window_visible(visible: bool, app: AppHandle) {
-    if let Some(playlist_window) = app.get_webview_window("playlist") {
-        if visible {
-            playlist_window.show().expect("Playlist window to show");
-        } else {
-            playlist_window.hide().expect("Playlist window to hide");
-        }
+pub async fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) -> Result<(), ()> {
+    let playlist_window = app_handle
+        .get_webview_window("playlist")
+        .unwrap_or_else(|| {
+            let player_window = app_handle
+                .get_webview_window("player")
+                .expect("a player window");
+            let mut initial_position = player_window
+                .outer_position()
+                .expect("a position for the player window");
+            initial_position.y += player_window
+                .outer_size()
+                .expect("a player window position")
+                .height as i32;
+
+            playlist_window::build_window(
+                &app_handle,
+                initial_position.to_logical(
+                    player_window
+                        .scale_factor()
+                        .expect("a scalefactor on the player window"),
+                ),
+            )
+            .expect("a playlist window to be created")
+        });
+    Settings::current_mut().player.show_playlist = visible;
+    if visible {
+        playlist_window.show().expect("Playlist window to show");
     } else {
-        log::error!("Could not get hold of the playlist window");
+        playlist_window.hide().expect("Playlist window to hide");
     }
+    Ok(())
 }
 
-pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, tauri::Error> {
-    tauri::WebviewWindowBuilder::new(
+pub fn build_window(app_handle: &AppHandle) -> Result<WebviewWindow, tauri::Error> {
+    let inner_size = Settings::current()
+        .player
+        .window_state
+        .inner_size
+        .clone()
+        .unwrap_or_default();
+    let window = tauri::WebviewWindowBuilder::new(
         app_handle,
         "player",
         tauri::WebviewUrl::App("player".into()),
     )
     .title("Player")
-    .inner_size(PLAYER_SIZE.0 * zoom, PLAYER_SIZE.1 * zoom)
+    .inner_size(inner_size.width as f64, inner_size.height as f64)
     .decorations(false)
     .shadow(false)
     .closable(false)
@@ -171,5 +210,26 @@ pub fn build_window(app_handle: &AppHandle, zoom: f64) -> Result<WebviewWindow, 
     .resizable(false)
     .disable_drag_drop_handler()
     .accept_first_mouse(true)
-    .build()
+    .build()?;
+
+    if let Some(logical_position) = &Settings::current().player.window_state.get_position() {
+        let _ = window.set_position(*logical_position);
+    }
+
+    window.on_window_event({
+        let window = window.clone();
+        move |window_event| {
+            if let tauri::WindowEvent::Moved(physical_position) = &window_event {
+                Settings::current_mut().player.window_state.set_position(
+                    physical_position.to_logical(
+                        window
+                            .scale_factor()
+                            .expect("a scale factor on the player window"),
+                    ),
+                );
+            }
+        }
+    });
+
+    Ok(window)
 }

@@ -1,9 +1,22 @@
 <script>
-    import { ORIGINAL_ZOOM, setZoom } from "$lib/common.js";
-    setZoom(ORIGINAL_ZOOM);
+    import { REACTIVE_WINDOW_SIZE } from "$lib/common.svelte";
+    import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+
+    /**
+     * @type {{children: import("svelte").Snippet}}
+     */
+    let { children } = $props();
+    $effect(() => {
+        getCurrentWindow().setSize(
+            new LogicalSize(
+                REACTIVE_WINDOW_SIZE.width * REACTIVE_WINDOW_SIZE.zoom,
+                REACTIVE_WINDOW_SIZE.height * REACTIVE_WINDOW_SIZE.zoom,
+            ),
+        );
+    });
 </script>
 
-<slot />
+{@render children()}
 
 <style>
     :global(*) {
