@@ -127,21 +127,37 @@ impl SpotifyPlayer {
         let auth_url = oauth_flow.get_auth_url();
         log::debug!("Opening URL: {auth_url}");
 
-        tauri::WebviewWindowBuilder::new(
+        let window = tauri::WebviewWindowBuilder::new(
             app,
             "login",
             tauri::WebviewUrl::External(auth_url.parse().expect("a valid auth URL")),
         )
         .title("Login")
         .inner_size(600.0, 800.0)
-        .closable(false)
+        .closable(true)
+        .resizable(false)
         .build()
         .map_err(|e| SessionError::OpenURLFailed { url: auth_url, e })?;
+
+        let token_received = Arc::new(Mutex::new(false));
+        window.on_window_event({
+            let token_received = token_received.clone();
+            move |e| {
+                if let tauri::WindowEvent::CloseRequested { .. } = &e {
+                    if !*token_received.lock().unwrap() {
+                        log::info!("No token received when closing login window. Exiting.");
+                        std::process::exit(0);
+                    }
+                }
+            }
+        });
 
         let token = oauth_flow
             .start()
             .await
             .map_err(|e| SessionError::TokenExchangeFailure { e })?;
+        *token_received.lock().unwrap() = true;
+        let _ = window.close();
 
         Ok(Credentials::with_access_token(
             token.access_token().secret(),
