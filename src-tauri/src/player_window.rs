@@ -151,8 +151,10 @@ pub async fn seek(position_ms: u32) -> Result<(), String> {
     Ok(())
 }
 
+//NOTE: The command needs to be async for Windows to be able to create new windows in it.
+//      See https://github.com/tauri-apps/tauri/issues/4121 for details
 #[tauri::command]
-pub fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) {
+pub async fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) -> Result<(), ()> {
     let playlist_window = app_handle
         .get_webview_window("playlist")
         .unwrap_or_else(|| {
@@ -164,18 +166,11 @@ pub fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) {
                 .expect("a position for the player window");
             initial_position.y += player_window
                 .outer_size()
-                .expect("a player windoow position")
+                .expect("a player window position")
                 .height as i32;
 
-            playlist_window::build_window(
-                &app_handle,
-                initial_position.to_logical(
-                    player_window
-                        .scale_factor()
-                        .expect("A scale factor on the player window"),
-                ),
-            )
-            .expect("a playlist window to be created")
+            playlist_window::build_window(&app_handle, initial_position)
+                .expect("a playlist window to be created")
         });
     Settings::current_mut().player.show_playlist = visible;
     if visible {
@@ -183,6 +178,7 @@ pub fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) {
     } else {
         playlist_window.hide().expect("Playlist window to hide");
     }
+    Ok(())
 }
 
 pub fn build_window(app_handle: &AppHandle) -> Result<WebviewWindow, tauri::Error> {
@@ -213,14 +209,12 @@ pub fn build_window(app_handle: &AppHandle) -> Result<WebviewWindow, tauri::Erro
     }
 
     let window = window_builder.build()?;
-    let scale_factor = window.scale_factor().expect("a scale factor on the window");
     window.on_window_event(move |window_event| {
         if let tauri::WindowEvent::Moved(physical_position) = &window_event {
-            let logical_position = physical_position.to_logical(scale_factor);
             Settings::current_mut().player.window_state.outer_position =
                 Some(OuterWindowPosition {
-                    x: logical_position.x,
-                    y: logical_position.y,
+                    x: physical_position.x,
+                    y: physical_position.y,
                 });
         }
     });

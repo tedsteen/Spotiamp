@@ -138,7 +138,7 @@ impl Settings {
 
     fn load() -> Settings {
         let settings_file_path = get_settings_file_path();
-
+        log::info!("Loading settings from '{settings_file_path:?}'");
         let mut settings: Result<Settings, String> = File::open(settings_file_path.clone())
             .map_err(|e| format!("Could not open file ({e:?}"))
             .and_then(|f| {

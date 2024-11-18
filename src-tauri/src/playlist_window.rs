@@ -1,4 +1,4 @@
-use tauri::{AppHandle, LogicalPosition, WebviewWindow};
+use tauri::{AppHandle, PhysicalPosition, WebviewWindow};
 
 use crate::settings::{InnerWindowSize, OuterWindowPosition, PlaylistSettings, Settings};
 
@@ -20,7 +20,7 @@ pub fn set_playlist_inner_size(width: u32, height: u32) {
 
 pub fn build_window(
     app: &AppHandle,
-    initial_position: LogicalPosition<f64>,
+    initial_position: PhysicalPosition<i32>,
 ) -> Result<WebviewWindow, tauri::Error> {
     let inner_size = Settings::current()
         .playlist
@@ -49,20 +49,17 @@ pub fn build_window(
     if let Some(outer_position) = &Settings::current().playlist.window_state.outer_position {
         window_builder = window_builder.position(outer_position.x as f64, outer_position.y as f64);
     } else {
-        window_builder = window_builder.position(initial_position.x, initial_position.y);
+        window_builder =
+            window_builder.position(initial_position.x as f64, initial_position.y as f64);
     }
 
     let window = window_builder.build()?;
-    let scale_factor = window
-        .scale_factor()
-        .expect("a scale factor on the playlist window");
     window.on_window_event(move |window_event| {
         if let tauri::WindowEvent::Moved(physical_position) = &window_event {
-            let logical_position = physical_position.to_logical(scale_factor);
             Settings::current_mut().playlist.window_state.outer_position =
                 Some(OuterWindowPosition {
-                    x: logical_position.x,
-                    y: logical_position.y,
+                    x: physical_position.x,
+                    y: physical_position.y,
                 });
         }
     });
