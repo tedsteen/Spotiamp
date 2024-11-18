@@ -3,10 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 /** @type {import('./$types').PageLoad} */
 export async function load({ }) {
 	/**
-	 * @type {number}
+	 * @type {import('$lib/common.svelte').PlayerSettings}
 	 */
-	const initialVolume = await invoke("get_volume");
-	return {
-		initialVolume
-	};
+	const playerSettings = await invoke("get_player_settings");
+	return playerSettings;
 }

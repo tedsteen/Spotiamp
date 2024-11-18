@@ -1,34 +1,31 @@
 import { invoke } from '@tauri-apps/api/core';
 import { message } from '@tauri-apps/plugin-dialog';
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emit, } from "@tauri-apps/api/event";
 
-export const PLAYER_SIZE = { width: 275.0, height: 116.0 };
-// TODO: This is used to correct tauris' broken inner size on the window.
-//       Wait for https://github.com/tauri-apps/tauri/issues/6333 to be fixed and then remove this hack.
-let widthCompensation = 0, heightCompensation = 0;
-export async function adjustInnerSize() {
-    if (window.innerWidth / PLAYER_SIZE.width != 1 || window.innerHeight / PLAYER_SIZE.height != 1) {
-        // Reset size in case there is a zoom
-        await getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width, PLAYER_SIZE.height));
+class ReactiveWindowSize {
+    width = $state(275.0)
+    height = $state(116.0)
+    zoom = $state(1.0)
 
-        widthCompensation = PLAYER_SIZE.width - window.innerWidth;
-        heightCompensation = PLAYER_SIZE.height - window.innerHeight;
-        if (widthCompensation != 0 || heightCompensation != 0) {
-            console.info("Compensating for wrong inner size", widthCompensation, heightCompensation);
-            await getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width + widthCompensation, PLAYER_SIZE.height + heightCompensation));
-        }
+    /**
+     * @param {number} width
+     * @param {number} height
+     */
+    setSize(width, height) {
+        this.width = width;
+        this.height = height;
+    }
+
+    /**
+     * @param {number} zoom
+     */
+    setZoom(zoom) {
+        this.zoom = zoom;
+        document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
     }
 }
-
-/**
- * @param {number} zoom 
- */
-export async function setZoom(zoom) {
-    await getCurrentWindow().setSize(new LogicalSize(PLAYER_SIZE.width * zoom + widthCompensation, PLAYER_SIZE.height * zoom + heightCompensation)).then(() => {
-        document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
-    });
-}
+export const REACTIVE_WINDOW_SIZE = new ReactiveWindowSize();
 
 export class MMSS {
     /**
@@ -223,7 +220,7 @@ export function handleDrop(urlCallback) {
 }
 
 /**
- * @typedef { {playlistWindow: {event: {Ready: null, PlayRequsted: null, TrackLoaded: SpotifyTrack, EndReached: null}}, playerWindow: {event: {Ready: null, CloseRequested: null, UrlsDropped: string[], NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
+ * @typedef { {playlistWindow: {event: {Ready: null, PlayRequsted: null, TrackLoaded: SpotifyTrack, EndReached: null}}, playerWindow: {event: {CloseRequested: null, UrlsDropped: string[], NextPressed: null, PreviousPressed: null }}, player: { event: { 'TrackChanged': {uri: string}, 'Paused': { id: number, position_ms: number}, 'Playing': { id: number, position_ms: number}, 'Stopped': {id: number}, 'EndOfTrack': {id: number}, 'PositionCorrection': { id: number, position_ms: number}, 'Seeked': { id: number, position_ms: number}} }} } WindowEventTypes
  */
 
 /**
@@ -245,3 +242,24 @@ const CURRENT_WINDOW = getCurrentWindow();
 export async function subscribeToWindowEvent(key, callback) {
     return await CURRENT_WINDOW.listen(key, (event) => { callback(event.payload) });
 }
+
+/**
+ * @typedef {{ width: number, height: number }} WindowInnerSize
+ */
+
+/**
+ * @typedef {{ width: number, height: number }} WindowOuterPosition
+ */
+
+
+/**
+ * @typedef {{ inner_size: WindowInnerSize | null, outer_position: WindowOuterPosition | null }} WindowState
+ */
+
+/**
+ * @typedef {{ volume: number, double_size_active: boolean, show_playlist: boolean, window_state: WindowState }} PlayerSettings
+ */
+
+/**
+ * @typedef {{ uris: string[], window_state: WindowState }} PlaylistSettings
+ */

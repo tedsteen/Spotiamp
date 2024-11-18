@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use librespot::playback::player::PlayerEvent;
 use serde::{Deserialize, Serialize};
 use spotify::{SessionError, SpotifyPlayer};
-use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri::{AppHandle, Emitter, Listener};
 use thiserror::Error;
 use tokio::sync::Mutex;
 mod oauth;
@@ -14,7 +14,6 @@ mod sink;
 mod spotify;
 mod visualizer;
 
-pub const PLAYER_SIZE: (f64, f64) = (275.0, 116.0);
 pub fn player() -> &'static Mutex<SpotifyPlayer> {
     static MEM: OnceLock<Mutex<SpotifyPlayer>> = OnceLock::new();
     MEM.get_or_init(|| Mutex::new(SpotifyPlayer::new()))
@@ -46,7 +45,6 @@ enum SpotiampPlayerEvent {
 
 #[derive(Clone, Deserialize)]
 enum PlayerWindowEvent {
-    Ready,
     CloseRequested,
 }
 
@@ -128,26 +126,6 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
                 PlayerWindowEvent::CloseRequested => {
                     std::process::exit(0);
                 }
-                PlayerWindowEvent::Ready => {
-                    if app_handle.get_webview_window("playlist").is_none() {
-                        let mut playlist_position = player_window
-                            .outer_position()
-                            .expect("a position for the player window");
-                        playlist_position.y += player_window
-                            .outer_size()
-                            .expect("a player windoow position")
-                            .height as i32;
-                        playlist_window::build_window(
-                            &app_handle,
-                            playlist_position.to_logical(
-                                player_window
-                                    .scale_factor()
-                                    .expect("a logical playlist position"),
-                            ),
-                        )
-                        .expect("a playlist window to be created");
-                    }
-                }
             },
             Err(e) => log::debug!(
                 "Could not deserialize playlistWindow event: '{:?}' ({e:?}) - ignoring",
@@ -171,11 +149,15 @@ pub fn run() {
             player_window::play,
             player_window::pause,
             player_window::stop,
-            player_window::get_volume,
+            player_window::get_player_settings,
             player_window::set_volume,
+            player_window::set_double_size,
             player_window::take_latest_spectrum,
             player_window::seek,
             player_window::set_playlist_window_visible,
+            playlist_window::get_playlist_settings,
+            playlist_window::add_uri,
+            playlist_window::set_playlist_inner_size,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

@@ -1,10 +1,22 @@
 <script>
-    import { adjustInnerSize } from "$lib/common";
+    import { REACTIVE_WINDOW_SIZE } from "$lib/common.svelte";
+    import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+
+    /**
+     * @type {{children: import("svelte").Snippet}}
+     */
+    let { children } = $props();
+    $effect(() => {
+        getCurrentWindow().setSize(
+            new LogicalSize(
+                REACTIVE_WINDOW_SIZE.width * REACTIVE_WINDOW_SIZE.zoom,
+                REACTIVE_WINDOW_SIZE.height * REACTIVE_WINDOW_SIZE.zoom,
+            ),
+        );
+    });
 </script>
 
-{#await adjustInnerSize() then}
-    <slot />
-{/await}
+{@render children()}
 
 <style>
     :global(*) {

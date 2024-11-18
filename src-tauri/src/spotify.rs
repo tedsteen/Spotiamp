@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     oauth::{OAuthError, OAuthFlow},
+    settings::Settings,
     sink::SpotiampSink,
     visualizer::Visualizer,
 };
@@ -36,19 +37,12 @@ pub struct SpotifyPlayer {
     visualizer: Arc<Mutex<Visualizer>>,
 }
 
-const DEFAULT_VOLUME: u16 = 80;
 impl SpotifyPlayer {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let cache = get_config_dir()
             .and_then(|config_dir| {
-                Cache::new(
-                    Some(config_dir.clone()),
-                    Some(config_dir.clone()),
-                    Some(config_dir),
-                    None,
-                )
-                .ok()
+                Cache::new(Some(config_dir.clone()), None, Some(config_dir), None).ok()
             })
             .expect("a cache to be created");
 
@@ -77,7 +71,7 @@ impl SpotifyPlayer {
             }
         }
         let session = Session::new(SessionConfig::default(), Some(cache.clone()));
-        let volume = Arc::new(Mutex::new(cache.volume().unwrap_or(DEFAULT_VOLUME)));
+        let volume = Arc::new(Mutex::new(Settings::current().player.volume));
         let visualizer = Arc::new(Mutex::new(Visualizer::new()));
         let player = Player::new(
             player_config,

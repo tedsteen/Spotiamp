@@ -9,8 +9,8 @@
     handleError,
     subscribeToWindowEvent,
     handleDrop,
-    setZoom,
-  } from "$lib/common.js";
+    REACTIVE_WINDOW_SIZE,
+  } from "$lib/common.svelte.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
@@ -18,18 +18,17 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
 
   /** @type {{data: import('./$types').PageData}} */
-  const { data } = $props();
-  const { initialVolume } = data;
+  const { data: playerSettings } = $props();
 
   /**
    * @type {SpotifyTrack | undefined}
    */
   let loadedTrack = $state();
-  let volume = $state(initialVolume);
+  let volume = $state(playerSettings.volume);
   let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
-  let showPlaylist = $state(true);
-  let doubleSizeActive = $state(false);
+  let showPlaylist = $state(playerSettings.show_playlist);
+  let doubleSizeActive = $state(playerSettings.double_size_active);
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */
@@ -128,7 +127,8 @@
   });
 
   $effect(() => {
-    setZoom(doubleSizeActive ? 2 : 1);
+    invoke("set_double_size", { active: doubleSizeActive });
+    REACTIVE_WINDOW_SIZE.setZoom(doubleSizeActive ? 2 : 1);
   });
 
   onMount(() => {
@@ -151,15 +151,6 @@
           play();
         } else if (event.EndReached !== undefined) {
           stop();
-        } else if (event.Ready !== undefined) {
-          emitWindowEvent("playerWindow", {
-            UrlsDropped: [
-              "https://open.spotify.com/track/4rZSduTjZIZIcAY2bW7H0l",
-              "https://open.spotify.com/track/5ezjAnO0uuGL10qvOe1tCT",
-              "https://open.spotify.com/playlist/2XWjC6cK8YAy3QtrwH9h7a",
-              "https://open.spotify.com/playlist/2zKOYCC7MRak6klBtBCO5G",
-            ],
-          });
         }
       },
     );
@@ -193,7 +184,6 @@
       emitWindowEvent("playerWindow", { UrlsDropped: urls });
     });
 
-    emitWindowEvent("playerWindow", { Ready: null });
     return () => {
       clearInterval(tickerInterval);
       playerEventsSubscription.then((unlisten) => unlisten());

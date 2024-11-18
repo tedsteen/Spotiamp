@@ -1,17 +1,32 @@
 <script>
-  import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
   import {
     enterExitViewport,
     range,
     handleDrop,
     emitWindowEvent,
-  } from "$lib/common.js";
+    SpotifyUri,
+    REACTIVE_WINDOW_SIZE,
+  } from "$lib/common.svelte.js";
   import { onMount } from "svelte";
   import { Playlist } from "$lib/playlist.svelte";
-  const ZOOM = 1;
-  let playlistWidth = $state(Math.ceil(window.innerWidth / ZOOM / 25));
-  let playlistHeight = $state(Math.ceil(window.innerHeight / ZOOM / 29));
+  import { invoke } from "@tauri-apps/api/core";
+
+  /** @type {{data: import('./$types').PageData}} */
+  const { data: playlistSettings } = $props();
+  if (playlistSettings.window_state.inner_size) {
+    const { width, height } = playlistSettings.window_state.inner_size;
+    REACTIVE_WINDOW_SIZE.setSize(width, height);
+  }
+
+  let playlistWidth = $derived(Math.ceil(REACTIVE_WINDOW_SIZE.width / 25));
+  let playlistHeight = $derived(Math.ceil(REACTIVE_WINDOW_SIZE.height / 29));
   const playlist = new Playlist();
+
+  (async () => {
+    for (let uri of playlistSettings.uris) {
+      await playlist.addRow(SpotifyUri.fromString(uri));
+    }
+  })();
 
   onMount(() => {
     const cleanupDropHandler = handleDrop(async (urls) => {
@@ -33,13 +48,20 @@
   function makeDraggable(element) {
     element.onpointerdown = function (event) {
       document.onmousemove = function (event) {
-        const pointerX = Math.max(Math.ceil(event.clientX / ZOOM / 25), 11);
-        const pointerY = Math.max(Math.ceil(event.clientY / ZOOM / 29), 4);
-        const w = getCurrentWindow();
-        playlistWidth = pointerX;
-        playlistHeight = pointerY;
+        const pointerX = Math.max(
+          Math.ceil(event.clientX / REACTIVE_WINDOW_SIZE.zoom / 25),
+          11,
+        );
+        const pointerY = Math.max(
+          Math.ceil(event.clientY / REACTIVE_WINDOW_SIZE.zoom / 29),
+          4,
+        );
 
-        w.setSize(new LogicalSize(pointerX * 25 * ZOOM, pointerY * 29 * ZOOM));
+        REACTIVE_WINDOW_SIZE.setSize(pointerX * 25, pointerY * 29);
+        invoke("set_playlist_inner_size", {
+          width: REACTIVE_WINDOW_SIZE.width,
+          height: REACTIVE_WINDOW_SIZE.height,
+        });
       };
 
       document.onmouseup = function () {
