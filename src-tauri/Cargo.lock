@@ -5488,7 +5488,7 @@ checksum = "35abfe290b05ab81e1773eb1849e23d024b2571640444d5024308871308ae805"
 
 [[package]]
 name = "spotiamp"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "audioviz",
  "axum",
