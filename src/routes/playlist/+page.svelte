@@ -4,7 +4,6 @@
     range,
     handleDrop,
     emitWindowEvent,
-    SpotifyUri,
     REACTIVE_WINDOW_SIZE,
   } from "$lib/common.svelte.js";
   import { onMount } from "svelte";
@@ -18,15 +17,20 @@
     REACTIVE_WINDOW_SIZE.setSize(width, height);
   }
 
-  let playlistWidth = $derived(Math.ceil(REACTIVE_WINDOW_SIZE.width / 25));
-  let playlistHeight = $derived(Math.ceil(REACTIVE_WINDOW_SIZE.height / 29));
-  const playlist = new Playlist();
+  const playlist = new Playlist(playlistSettings.uris);
 
-  (async () => {
-    for (let uri of playlistSettings.uris) {
-      await playlist.addRow(SpotifyUri.fromString(uri));
+  /**
+   * @param {DocumentEventMap["keydown"]} e
+   */
+  function preventKeyboardScrolling(e) {
+    if (
+      ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(
+        e.code,
+      ) != -1
+    ) {
+      e.preventDefault();
     }
-  })();
+  }
 
   onMount(() => {
     const cleanupDropHandler = handleDrop(async (urls) => {
@@ -75,10 +79,44 @@
 
     element.onselectstart = () => false;
   }
+  let scroll = $state(0);
+  /**
+   * @type {HTMLElement | undefined}
+   */
+  let scrollElement = $state();
+  /**
+   * @param {DocumentEventMap["scroll"]} e
+   */
+  function parseScroll(e) {
+    if (scrollElement) {
+      const max = scrollElement.scrollHeight - scrollElement.clientHeight;
+      const value = Math.min(Math.max(0, scrollElement.scrollTop), max);
+      scroll = (value / max) * 100;
+    }
+  }
+
+  /**
+   * @param {Event} event
+   */
+  function onManualScroll(event) {
+    if (scrollElement && event.target instanceof HTMLInputElement) {
+      const max = scrollElement.scrollHeight - scrollElement.clientHeight;
+      scrollElement.scrollTop = (parseInt(event.target.value) / 100) * max;
+    }
+  }
 </script>
 
-<span style:--playlist-w={playlistWidth} style:--playlist-h={playlistHeight}>
-  <div class="tracks-container">
+<span style:--playlist-w={playlist.width} style:--playlist-h={playlist.height}>
+  <div
+    class="tracks-container"
+    onkeydown={preventKeyboardScrolling}
+    role="scrollbar"
+    tabindex="0"
+    aria-controls="playlist-tracks"
+    aria-valuenow={scroll}
+    onscroll={parseScroll}
+    bind:this={scrollElement}
+  >
     <table id="playlist-tracks">
       <tbody>
         {#each playlist.rows as row, index}
@@ -90,6 +128,7 @@
             onmousedown={() => (playlist.selectedRows = [row])}
             ondblclick={() => row.play()}
             use:enterExitViewport
+            bind:this={row.element}
             onenterViewport={row.getOnEnterViewport()}
           >
             <td>
@@ -101,6 +140,12 @@
         {/each}
       </tbody>
     </table>
+    <input
+      class="sprite scroll-bar"
+      type="range"
+      bind:value={scroll}
+      oninput={onManualScroll}
+    />
   </div>
 
   <!-- Top corners -->
@@ -108,30 +153,30 @@
 
   <div
     class="sprite playlist-sprite playlist-tr-sprite"
-    style:--x={playlistWidth}
+    style:--x={playlist.width}
   ></div>
 
   <!-- Left/Right -->
-  {#each range(1, playlistHeight - 2) as y}
+  {#each range(1, playlist.height - 2) as y}
     <div class="sprite playlist-sprite playlist-l-sprite" style:--y={y}></div>
     <div
       class="sprite playlist-sprite playlist-r-sprite"
       style:--y={y}
-      style:--x={playlistWidth}
+      style:--x={playlist.width}
     ></div>
   {/each}
 
   <!-- Top/Bottom -->
-  {#each range(1, playlistWidth - 2) as x}
+  {#each range(1, playlist.width - 2) as x}
     <div
       data-tauri-drag-region
       class="sprite playlist-sprite playlist-t-sprite"
       style:--x={x}
     ></div>
-    {#if x >= 5 && x < playlistWidth - 6}
+    {#if x >= 5 && x < playlist.width - 6}
       <div
         class="sprite playlist-sprite playlist-b-sprite"
-        style:--y={playlistHeight - 1}
+        style:--y={playlist.height - 1}
         style:--x={x}
       ></div>
     {/if}
@@ -141,19 +186,19 @@
   <div
     data-tauri-drag-region
     class="sprite playlist-sprite playlist-title-sprite"
-    style:--x={playlistWidth / 2 - 2}
+    style:--x={playlist.width / 2 - 2}
   ></div>
 
   <!-- Bottom corners -->
   <div
     class="sprite playlist-sprite playlist-bl-sprite"
-    style:--y={playlistHeight}
+    style:--y={playlist.height}
   ></div>
 
   <div
     class="sprite playlist-sprite playlist-br-sprite"
-    style:--y={playlistHeight - 1}
-    style:--x={playlistWidth - 9}
+    style:--y={playlist.height - 1}
+    style:--x={playlist.width - 9}
   ></div>
 
   <div class="draggable-corner" use:makeDraggable></div>
@@ -190,9 +235,55 @@
     margin-left: calc(10px * var(--zoom));
     width: calc((var(--playlist-w) * 25px - 29px) * var(--zoom));
     height: calc(
-      (var(--playlist-h) - 1) * 2 * var(--track-row-height) * var(--zoom)
+      (var(--playlist-h) - 2) * 2 * var(--track-row-height) * var(--zoom)
     );
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: scroll;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .tracks-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .tracks-container {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  input.scroll-bar {
+    cursor: url(/src/static/assets/skins/base-2.91/EQSLID.CUR), default;
+    --track-row-height: 14.5px;
+    writing-mode: vertical-lr;
+    direction: ltr;
+    appearance: none;
+    --x: var(--playlist-w);
+    --y: var(--playlist-h);
+    --width: 10px;
+
+    left: calc(((var(--x)) * 25px - var(--width)) * var(--zoom) - 5px);
+    top: 20px;
+
+    height: calc(
+      (var(--playlist-h) - 2) * 2 * var(--track-row-height) * var(--zoom)
+    );
+    vertical-align: bottom;
+    position: absolute;
+    z-index: 1000;
+  }
+
+  input.scroll-bar::-webkit-slider-thumb {
+    background: url(/src/static/assets/skins/base-2.91/PLEDIT.BMP);
+    appearance: none;
+    width: 8px;
+    height: 18px;
+    margin-bottom: 1px;
+    background-position: -52px -53px;
+  }
+
+  input.scroll-bar::-webkit-slider-thumb:active {
+    background-position-x: -61px;
   }
 
   #playlist-tracks {
