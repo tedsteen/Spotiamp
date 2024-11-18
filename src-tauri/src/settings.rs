@@ -10,6 +10,7 @@ use std::{
 
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use tauri::LogicalPosition;
 
 pub fn get_config_dir() -> Option<PathBuf> {
     let path =
@@ -89,6 +90,21 @@ impl Default for InnerWindowSize {
 pub struct WindowState {
     pub outer_position: Option<OuterWindowPosition>,
     pub inner_size: Option<InnerWindowSize>,
+}
+
+impl WindowState {
+    pub fn get_position(&self) -> Option<LogicalPosition<i32>> {
+        self.outer_position
+            .as_ref()
+            .map(|pos| LogicalPosition::new(pos.x, pos.y))
+    }
+
+    pub fn set_position(&mut self, position: LogicalPosition<i32>) {
+        self.outer_position = Some(OuterWindowPosition {
+            x: position.x,
+            y: position.y,
+        });
+    }
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Hash)]

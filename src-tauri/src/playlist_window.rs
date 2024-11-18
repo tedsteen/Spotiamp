@@ -1,6 +1,6 @@
-use tauri::{AppHandle, PhysicalPosition, WebviewWindow};
+use tauri::{AppHandle, LogicalPosition, WebviewWindow};
 
-use crate::settings::{InnerWindowSize, OuterWindowPosition, PlaylistSettings, Settings};
+use crate::settings::{InnerWindowSize, PlaylistSettings, Settings};
 
 #[tauri::command]
 pub fn get_playlist_settings() -> PlaylistSettings {
@@ -20,7 +20,7 @@ pub fn set_playlist_inner_size(width: u32, height: u32) {
 
 pub fn build_window(
     app: &AppHandle,
-    initial_position: PhysicalPosition<i32>,
+    initial_position: LogicalPosition<i32>,
 ) -> Result<WebviewWindow, tauri::Error> {
     let inner_size = Settings::current()
         .playlist
@@ -29,7 +29,7 @@ pub fn build_window(
         .clone()
         .unwrap_or_default();
 
-    let mut window_builder = tauri::WebviewWindowBuilder::new(
+    let window = tauri::WebviewWindowBuilder::new(
         app,
         "playlist",
         tauri::WebviewUrl::App("playlist".into()),
@@ -44,23 +44,29 @@ pub fn build_window(
     .shadow(false)
     .resizable(false)
     .disable_drag_drop_handler()
-    .accept_first_mouse(true);
+    .accept_first_mouse(true)
+    .build()?;
 
-    if let Some(outer_position) = &Settings::current().playlist.window_state.outer_position {
-        window_builder = window_builder.position(outer_position.x as f64, outer_position.y as f64);
-    } else {
-        window_builder =
-            window_builder.position(initial_position.x as f64, initial_position.y as f64);
-    }
+    let _ = window.set_position(
+        Settings::current()
+            .playlist
+            .window_state
+            .get_position()
+            .unwrap_or(initial_position),
+    );
 
-    let window = window_builder.build()?;
-    window.on_window_event(move |window_event| {
-        if let tauri::WindowEvent::Moved(physical_position) = &window_event {
-            Settings::current_mut().playlist.window_state.outer_position =
-                Some(OuterWindowPosition {
-                    x: physical_position.x,
-                    y: physical_position.y,
-                });
+    window.on_window_event({
+        let window = window.clone();
+        move |window_event| {
+            if let tauri::WindowEvent::Moved(physical_position) = &window_event {
+                Settings::current_mut().playlist.window_state.set_position(
+                    physical_position.to_logical(
+                        window
+                            .scale_factor()
+                            .expect("a scale factor for the playlist window"),
+                    ),
+                );
+            }
         }
     });
     Ok(window)

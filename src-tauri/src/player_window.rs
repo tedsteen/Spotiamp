@@ -4,7 +4,7 @@ use tauri::{AppHandle, Manager, WebviewWindow};
 
 use crate::{
     player, playlist_window,
-    settings::{OuterWindowPosition, PlayerSettings, Settings},
+    settings::{PlayerSettings, Settings},
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -169,8 +169,15 @@ pub async fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) -
                 .expect("a player window position")
                 .height as i32;
 
-            playlist_window::build_window(&app_handle, initial_position)
-                .expect("a playlist window to be created")
+            playlist_window::build_window(
+                &app_handle,
+                initial_position.to_logical(
+                    player_window
+                        .scale_factor()
+                        .expect("a scalefactor on the player window"),
+                ),
+            )
+            .expect("a playlist window to be created")
         });
     Settings::current_mut().player.show_playlist = visible;
     if visible {
@@ -188,7 +195,7 @@ pub fn build_window(app_handle: &AppHandle) -> Result<WebviewWindow, tauri::Erro
         .inner_size
         .clone()
         .unwrap_or_default();
-    let mut window_builder = tauri::WebviewWindowBuilder::new(
+    let window = tauri::WebviewWindowBuilder::new(
         app_handle,
         "player",
         tauri::WebviewUrl::App("player".into()),
@@ -202,20 +209,25 @@ pub fn build_window(app_handle: &AppHandle) -> Result<WebviewWindow, tauri::Erro
     .minimizable(false)
     .resizable(false)
     .disable_drag_drop_handler()
-    .accept_first_mouse(true);
+    .accept_first_mouse(true)
+    .build()?;
 
-    if let Some(outer_position) = &Settings::current().player.window_state.outer_position {
-        window_builder = window_builder.position(outer_position.x as f64, outer_position.y as f64);
+    if let Some(logical_position) = &Settings::current().player.window_state.get_position() {
+        let _ = window.set_position(*logical_position);
     }
 
-    let window = window_builder.build()?;
-    window.on_window_event(move |window_event| {
-        if let tauri::WindowEvent::Moved(physical_position) = &window_event {
-            Settings::current_mut().player.window_state.outer_position =
-                Some(OuterWindowPosition {
-                    x: physical_position.x,
-                    y: physical_position.y,
-                });
+    window.on_window_event({
+        let window = window.clone();
+        move |window_event| {
+            if let tauri::WindowEvent::Moved(physical_position) = &window_event {
+                Settings::current_mut().player.window_state.set_position(
+                    physical_position.to_logical(
+                        window
+                            .scale_factor()
+                            .expect("a scale factor on the player window"),
+                    ),
+                );
+            }
         }
     });
 
