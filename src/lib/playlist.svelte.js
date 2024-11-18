@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { emitWindowEvent, enterExitViewportObserver, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common.svelte";
+import { emitWindowEvent, enterExitViewportObserver, REACTIVE_WINDOW_SIZE, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common.svelte";
 import memoize from "lodash.memoize";
 
 class MultiTrackRow {
@@ -9,6 +9,10 @@ class MultiTrackRow {
      */
     displayName = $state("")
     unavailable = false
+    /**
+     * @type {HTMLElement | undefined}
+     */
+    element = $state()
 
     /**
      * @param {SpotifyUri} uri
@@ -67,6 +71,10 @@ class TrackRow {
     displayName = $derived(this.track ? this.track.displayName : this.loadingMessage)
     displayDuration = $derived(this.track ? this.track.displayDuration : '')
     unavailable = $derived(this.track ? this.track.unavailable : false)
+    /**
+     * @type {HTMLElement | undefined}
+     */
+    element = $state()
 
     /**
      * @param {SpotifyUri} uri
@@ -137,6 +145,9 @@ class TrackRow {
 }
 
 export class Playlist {
+    width = $derived(Math.ceil(REACTIVE_WINDOW_SIZE.width / 25));
+    height = $derived(Math.ceil(REACTIVE_WINDOW_SIZE.height / 29));
+
     /**
      * @type {TrackRow | undefined}
      */
@@ -149,7 +160,27 @@ export class Playlist {
      * @type {(TrackRow | MultiTrackRow)[]}
      */
     selectedRows = $state([]);
-    constructor() {
+
+    /**
+     * @argument {string[]} uris
+     */
+    constructor(uris) {
+        $effect(() => {
+            const selectedRow = this.selectedRows[0];
+            if (selectedRow) {
+                if (selectedRow.element) {
+                    const selectedRowElement = selectedRow.element;
+                    var rect = selectedRowElement.getBoundingClientRect();
+
+                    if (rect.top < 20) {
+                        selectedRowElement.scrollIntoView(true);
+                    } else if (rect.bottom > this.height * 29 - 38) {
+                        selectedRowElement.scrollIntoView(false);
+                    }
+                }
+            }
+        })
+
         /**
         * @param {DocumentEventMap["keydown"]} e
         */
@@ -196,6 +227,12 @@ export class Playlist {
                 });
             }
         });
+
+        (async () => {
+            for (let uri of uris) {
+                await this.addRow(SpotifyUri.fromString(uri));
+            }
+        })();
 
         this.dispose = () => {
             document.removeEventListener("keydown", playlistKeyDownListener);
