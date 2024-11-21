@@ -1,7 +1,10 @@
 # Spotiamp
 
 A Spotify client with a Winamp Classic (2.95) look.
+It is work in progress, mostly a fun project for me personally to try out Svelte 5 and Tauri 2.
+If you like it and miss your favourite Winamp Classic feature add an issue about it or even better create a PR.
 
+Check [releases](https://github.com/tedsteen/Spotiamp/releases/) for MacOS and Windows binaries.
 <p align="center">
   <img src="player.png" alt="Player"/>
   <br />
