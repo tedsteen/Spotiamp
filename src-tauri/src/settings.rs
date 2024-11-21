@@ -170,8 +170,7 @@ impl Settings {
         settings.unwrap_or_else(|e| {
             log::info!("Could not load a settings file ({e:?}, creating a new one");
             let mut new_settings = Settings::default();
-            new_settings.playlist.uris =
-                vec!["spotify:playlist:2XWjC6cK8YAy3QtrwH9h7a".to_string()];
+            new_settings.playlist.uris = vec!["spotify:track:0DiWol3AO6WpXZgp0goxAV".to_string()];
             new_settings
         })
     }
