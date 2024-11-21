@@ -1,5 +1,13 @@
 # Spotiamp
 
+A Spotify client with a Winamp Classic (2.95) look.
+
+<p align="center">
+  <img src="player.png" alt="Player"/>
+  <br />
+  <img src="playlist.png" alt="Playlist"/>
+</p>
+
 ## Building and running
 ```bash
 # Install all
