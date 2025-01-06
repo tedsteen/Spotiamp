@@ -32,11 +32,11 @@ audioviz = { version = "0.6", features = ["processor"] }
 ringbuffer = "0.15"
 
 oauth2 = "4.4"
-axum = "0.7"
-tokio = "1.41"
+axum = "0.8"
+tokio = "1.42"
 url = "2.5"
 directories = "5.0"
-tauri-plugin-dialog = "2.0"
+tauri-plugin-dialog = "2.2"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.
