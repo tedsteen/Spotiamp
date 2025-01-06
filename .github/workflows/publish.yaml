@@ -69,6 +69,10 @@ jobs:
           echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY" >> $GITHUB_ENV
           echo "Certificate imported."
 
+      - name: Install trusted-signing-cli
+        if: matrix.platform == 'windows-latest'
+        run: cargo install trusted-signing-cli
+
       - uses: tauri-apps/tauri-action@v0
         id: tauri-build
         env:
@@ -78,6 +82,9 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         with:
           tagName: ${{ github.ref }}
           releaseId: ${{ needs.create-release.outputs.release_id }}

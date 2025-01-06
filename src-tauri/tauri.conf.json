@@ -27,6 +27,9 @@
     ],
     "macOS": {
       "signingIdentity": "Developer ID Application: Ted Steen (A75CCY878M)"
+    },
+    "windows": {
+      "signCommand": "trusted-signing-cli -e https://weu.codesigning.azure.net/ -a nes-bundler-signing -c net-bundler %1"
     }
   }
 }
