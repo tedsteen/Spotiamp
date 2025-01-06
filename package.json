@@ -13,21 +13,21 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@tauri-apps/api": "^2.1",
-    "@tauri-apps/plugin-dialog": "^2.0",
+    "@tauri-apps/api": "^2.2",
+    "@tauri-apps/plugin-dialog": "^2.2",
     "@tauri-apps/plugin-shell": "^2",
-    "lodash.memoize": "^4.1.2",
-    "npm": "^10.9.0"
+    "lodash.memoize": "^4.1",
+    "npm": "^11.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0",
-    "@sveltejs/kit": "^2.8",
-    "@sveltejs/vite-plugin-svelte": "^4.0",
-    "@tauri-apps/cli": "^2.1",
-    "svelte": "^5.1",
-    "svelte-check": "^4.0",
-    "typescript": "^5.5",
-    "vite": "^5.4"
+    "@sveltejs/kit": "^2.15",
+    "@sveltejs/vite-plugin-svelte": "^5.0",
+    "@tauri-apps/cli": "^2.2",
+    "svelte": "^5.16",
+    "svelte-check": "^4.1",
+    "typescript": "^5.7",
+    "vite": "^6.0"
   },
-  "packageManager": "pnpm@9.13.2+sha512.88c9c3864450350e65a33587ab801acf946d7c814ed1134da4a924f6df5a2120fd36b46aab68f7cd1d413149112d53c7db3a4136624cfd00ff1846a0c6cef48a"
+  "packageManager": "pnpm@9.15.3"
 }
