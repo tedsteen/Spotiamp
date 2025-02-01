@@ -1,5 +1,5 @@
 use oauth2::{
-    basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, CsrfToken,
+    basic::BasicClient, reqwest, AuthUrl, AuthorizationCode, ClientId, CsrfToken,
     PkceCodeChallenge, RedirectUrl, Scope, TokenUrl,
 };
 use serde::Deserialize;
@@ -30,17 +30,32 @@ pub enum OAuthError {
     #[error("Failed to exchange code for access token ({e})")]
     ExchangeCode { e: String },
 
-    #[error("Failed to receive code")]
-    Recv,
+    #[error("Failed to receive code ({e})")]
+    Recv { e: String },
 
     #[error("Failed to setup local authentication server ({e})")]
     CouldNotStartServer { e: std::io::Error },
 }
+type Client = oauth2::Client<
+    oauth2::StandardErrorResponse<oauth2::basic::BasicErrorResponseType>,
+    oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>,
+    oauth2::StandardTokenIntrospectionResponse<
+        oauth2::EmptyExtraTokenFields,
+        oauth2::basic::BasicTokenType,
+    >,
+    oauth2::StandardRevocableToken,
+    oauth2::StandardErrorResponse<oauth2::RevocationErrorResponseType>,
+    oauth2::EndpointSet,
+    oauth2::EndpointNotSet,
+    oauth2::EndpointNotSet,
+    oauth2::EndpointNotSet,
+    oauth2::EndpointSet,
+>;
 
 pub struct OAuthFlow {
     auth_url: Url,
     socket_addr: SocketAddr,
-    pub client: BasicClient,
+    pub client: Client,
     pkce_verifier: oauth2::PkceCodeVerifier,
 }
 
@@ -71,13 +86,10 @@ impl OAuthFlow {
             }
         })?;
 
-        let client = BasicClient::new(
-            ClientId::new(client_id.to_string()),
-            None,
-            auth_url,
-            Some(token_url),
-        )
-        .set_redirect_uri(redirect_url);
+        let client = BasicClient::new(ClientId::new(client_id.to_string()))
+            .set_auth_uri(auth_url)
+            .set_token_uri(token_url)
+            .set_redirect_uri(redirect_url);
 
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (auth_url, _) = client
@@ -145,17 +157,22 @@ impl OAuthFlow {
             .await
             .map_err(|e| OAuthError::CouldNotStartServer { e })?;
 
-        let code = rx.recv().await.map_err(|_| OAuthError::Recv)?;
+        let code = rx
+            .recv()
+            .await
+            .map_err(|e| OAuthError::Recv { e: e.to_string() })?;
         log::debug!("Doing the exchange...");
-        tokio::task::spawn_blocking(move || {
-            self.client
-                .exchange_code(code)
-                .set_pkce_verifier(self.pkce_verifier)
-                .request(http_client)
-                .map_err(|e| OAuthError::ExchangeCode { e: e.to_string() })
-        })
-        .await
-        .map_err(|_| OAuthError::Recv)?
+        let http_client = reqwest::ClientBuilder::new()
+            // Following redirects opens the client up to SSRF vulnerabilities.
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("Client should build");
+        self.client
+            .exchange_code(code)
+            .set_pkce_verifier(self.pkce_verifier)
+            .request_async(&http_client)
+            .await
+            .map_err(|e| OAuthError::Recv { e: e.to_string() })
     }
 
     pub(crate) fn get_auth_url(&self) -> String {
