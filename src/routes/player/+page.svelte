@@ -72,7 +72,7 @@
         await invoke("stop").catch(handleError);
       } else {
         await invoke("load_track", { uri: loadedTrack?.uri.asString }).catch(
-          handleError,
+          handleError
         );
       }
     }
@@ -152,7 +152,7 @@
         } else if (event.EndReached !== undefined) {
           stop();
         }
-      },
+      }
     );
 
     const playerEventsSubscription = subscribeToWindowEvent(
@@ -177,7 +177,7 @@
           let { position_ms } = event.Seeked;
           seekPosition = position_ms;
         }
-      },
+      }
     );
 
     const cleanupDropHandler = handleDrop((urls) => {

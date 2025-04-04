@@ -1,6 +1,6 @@
 use std::{
     collections::hash_map::DefaultHasher,
-    fs::{create_dir_all, File},
+    fs::{File, create_dir_all},
     hash::{Hash, Hasher},
     io::{BufReader, BufWriter},
     ops::{Deref, DerefMut},

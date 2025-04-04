@@ -25,7 +25,7 @@
   function preventKeyboardScrolling(e) {
     if (
       ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(
-        e.code,
+        e.code
       ) != -1
     ) {
       e.preventDefault();
@@ -54,11 +54,11 @@
       document.onmousemove = function (event) {
         const pointerX = Math.max(
           Math.ceil(event.clientX / REACTIVE_WINDOW_SIZE.zoom / 25),
-          11,
+          11
         );
         const pointerY = Math.max(
           Math.ceil(event.clientY / REACTIVE_WINDOW_SIZE.zoom / 29),
-          4,
+          4
         );
 
         REACTIVE_WINDOW_SIZE.setSize(pointerX * 25, pointerY * 29);

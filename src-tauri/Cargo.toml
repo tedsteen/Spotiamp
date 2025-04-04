@@ -3,7 +3,7 @@ name = "spotiamp"
 version = "0.3.0"
 description = "Spotify in Winamp Classic"
 authors = ["Ted Steen"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -34,7 +34,7 @@ ringbuffer = "0.15"
 oauth2 = "5.0"
 rustls = "0.23"
 axum = "0.8"
-tokio = "1.42"
+tokio = "1.44"
 url = "2.5"
 directories = "6.0"
 tauri-plugin-dialog = "2.2"

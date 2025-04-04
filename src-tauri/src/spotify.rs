@@ -11,15 +11,15 @@ use crate::{
 };
 use librespot::{
     core::{
-        authentication::Credentials, cache::Cache, config::SessionConfig, session::Session,
-        spotify_id::SpotifyId, Error,
+        Error, authentication::Credentials, cache::Cache, config::SessionConfig, session::Session,
+        spotify_id::SpotifyId,
     },
     metadata::{Album, Metadata, Playlist, Track},
     playback::{
         config::{AudioFormat, Bitrate, NormalisationMethod, NormalisationType, PlayerConfig},
-        dither::{mk_ditherer, TriangularDitherer},
+        dither::{TriangularDitherer, mk_ditherer},
         mixer::VolumeGetter,
-        player::{duration_to_coefficient, Player, PlayerEventChannel},
+        player::{Player, PlayerEventChannel, duration_to_coefficient},
     },
 };
 use oauth2::TokenResponse;

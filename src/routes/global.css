@@ -1,0 +1,34 @@
+* {
+    padding: 0;
+    margin: 0;
+    border: 0;
+    image-rendering: pixelated;
+    cursor: url(/src/static/assets/skins/base-2.91/MAINMENU.CUR), auto;
+}
+
+/* Disable scrolling */
+html,
+body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: black;
+}
+
+.sprite {
+    background: var(--sprite-url);
+    position: absolute;
+    display: inline-block;
+    transform-origin: top left;
+    transform: scale(var(--zoom));
+    left: calc(var(--sprite-x) * var(--zoom));
+    top: calc(var(--sprite-y) * var(--zoom));
+}
+
+.hidden {
+    display: none;
+}
+
+*:focus {
+    outline: 0 !important;
+}
