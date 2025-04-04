@@ -1,6 +1,6 @@
 use oauth2::{
-    basic::BasicClient, reqwest, AuthUrl, AuthorizationCode, ClientId, CsrfToken,
-    PkceCodeChallenge, RedirectUrl, Scope, TokenUrl,
+    AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl, Scope,
+    TokenUrl, basic::BasicClient, reqwest,
 };
 use serde::Deserialize;
 use std::net::{SocketAddr, TcpListener};
@@ -9,11 +9,11 @@ use tokio::sync::broadcast::Sender;
 use url::{ParseError, Url};
 
 use axum::{
+    Router,
     extract::{Query, State},
     http::StatusCode,
     response::{Html, IntoResponse},
     routing::get,
-    Router,
 };
 
 #[derive(Debug, Error)]
