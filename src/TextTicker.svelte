@@ -133,6 +133,10 @@
     xShift = 0;
   });
 
+  const textWindow = $derived.by(() => {
+    const xOffset = textOverride ? 0 : xShift;
+    return letters.slice(xOffset, xOffset + Math.min(31, letters.length));
+  });
   onDestroy(() => clearInterval(ticker));
 </script>
 
@@ -142,19 +146,14 @@
   style:--y="{y}px"
   style:opacity={unavailable ? "50%" : "100%"}
 >
-  <div
-    class="text-shift-container"
-    style:--x-shift={textOverride ? 0 : -xShift}
-  >
-    {#each letters as lut, index}
-      <div
-        class="sprite letter-sprite"
-        style:--letter-idx-row={lut[0]}
-        style:--letter-idx-col={lut[1]}
-        style:--letter-col={index}
-      ></div>
-    {/each}
-  </div>
+  {#each textWindow as lut, index}
+    <div
+      class="sprite letter-sprite"
+      style:--letter-idx-row={lut[0]}
+      style:--letter-idx-col={lut[1]}
+      style:--letter-col={index}
+    ></div>
+  {/each}
 </div>
 
 <style>
@@ -165,10 +164,6 @@
     height: calc(6px * var(--zoom));
     left: calc(var(--x) * var(--zoom));
     top: calc(var(--y) * var(--zoom));
-  }
-
-  .text-shift-container {
-    transform: translateX(calc(var(--x-shift) * 5px * var(--zoom)));
   }
 
   .letter-sprite {
