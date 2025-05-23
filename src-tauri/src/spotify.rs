@@ -102,7 +102,7 @@ impl SpotifyPlayer {
         log::debug!("Getting credentials");
         let credentials = match self.cache.credentials() {
             Some(credentials) => credentials,
-            None => {
+            none => {
                 log::debug!("No credentials in cache, starting OAuth flow...");
                 Self::get_credentials_from_oauth(app).await?
             }

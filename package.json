@@ -13,21 +13,21 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@tauri-apps/api": "^2.4",
+    "@tauri-apps/api": "^2.5",
     "@tauri-apps/plugin-dialog": "^2.2",
     "@tauri-apps/plugin-shell": "^2",
     "lodash.memoize": "^4.1",
-    "npm": "^11.2"
+    "npm": "^11.4"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0",
-    "@sveltejs/kit": "^2.20",
+    "@sveltejs/kit": "^2.21",
     "@sveltejs/vite-plugin-svelte": "^5.0",
-    "@tauri-apps/cli": "^2.4",
-    "svelte": "^5.25",
-    "svelte-check": "^4.1",
+    "@tauri-apps/cli": "^2.5",
+    "svelte": "^5.33",
+    "svelte-check": "^4.2",
     "typescript": "^5.8",
-    "vite": "^6.2"
+    "vite": "^6.3"
   },
-  "packageManager": "pnpm@10.7.1"
+  "packageManager": "pnpm@10.11.0"
 }
