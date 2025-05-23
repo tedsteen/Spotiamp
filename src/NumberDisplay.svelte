@@ -1,6 +1,4 @@
 <script>
-  import { onDestroy } from "svelte";
-
   /**
    * @typedef {Object} Props
    * @property {string} number
