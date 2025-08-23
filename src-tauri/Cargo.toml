@@ -27,17 +27,17 @@ serde_yaml = "0.9.34-depricated"
 thiserror = "2"
 log = "0.4"
 env_logger = "0.11"
-librespot = "0.6"
+librespot = { git = "https://github.com/librespot-org/librespot.git", rev = "78ce118d32912adfb2705481f69c83df6a88211f" }
 audioviz = { version = "0.6", features = ["processor"] }
-ringbuffer = "0.15"
+ringbuffer = "0.16"
 
 oauth2 = "5.0"
 rustls = "0.23"
 axum = "0.8"
-tokio = "1.45"
+tokio = "1.47"
 url = "2.5"
 directories = "6.0"
-tauri-plugin-dialog = "2.2"
+tauri-plugin-dialog = "2.3"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.

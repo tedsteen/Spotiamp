@@ -47,6 +47,7 @@ impl SpotifyPlayer {
             .expect("a cache to be created");
 
         let player_config = PlayerConfig {
+            position_update_interval: None,
             bitrate: Bitrate::Bitrate320,
             gapless: true,
             normalisation: false,
@@ -102,7 +103,7 @@ impl SpotifyPlayer {
         log::debug!("Getting credentials");
         let credentials = match self.cache.credentials() {
             Some(credentials) => credentials,
-            none => {
+            None => {
                 log::debug!("No credentials in cache, starting OAuth flow...");
                 Self::get_credentials_from_oauth(app).await?
             }
