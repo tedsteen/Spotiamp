@@ -2698,8 +2698,9 @@ dependencies = [
 
 [[package]]
 name = "librespot"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c7cb6c7727d1e05d1bdb33841ccfa5d00fee9c8b2076009d83810c0aaa5b366"
 dependencies = [
  "data-encoding",
  "env_logger",
@@ -2723,8 +2724,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-audio"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b74b16914796c467c3d0226d9c54f3d36c3792a6b93999da5eb615e7f278f250"
 dependencies = [
  "aes",
  "bytes",
@@ -2743,8 +2745,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-connect"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63f6731275cdca8f913d02bac03ac00e21f25e6e6c178d484be216e988472b4c"
 dependencies = [
  "futures-util",
  "librespot-core",
@@ -2762,8 +2765,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-core"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9aa9afd345c93ceb3ea56ec45eaaa2148d46bc817bc402d74517a94d2506f186"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2819,8 +2823,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-discovery"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6d5773de3210a2970d367a3d9d73bcdcb96a69aed29c6a6ee051efccb6f4799"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2846,8 +2851,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-metadata"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c495437fe220d95897543f7e50b0bbff42293a1dba6f8254aeb2bb7571b8ddda"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2863,8 +2869,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-oauth"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dda061e3efdeb1f13f1663e46ee67f4b244cbefdd6231cad4471dd368787787"
 dependencies = [
  "log",
  "oauth2",
@@ -2876,8 +2883,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-playback"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eadeeb4427427be4a49f95096783ce2cc65512c3abd4817acf12dff0ba456922"
 dependencies = [
  "cpal 0.16.0",
  "futures-util",
@@ -2899,8 +2907,9 @@ dependencies = [
 
 [[package]]
 name = "librespot-protocol"
-version = "0.6.0-dev"
-source = "git+https://github.com/librespot-org/librespot.git?rev=78ce118d32912adfb2705481f69c83df6a88211f#78ce118d32912adfb2705481f69c83df6a88211f"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "193cdc35135a01dde3f5c3f51de4597ca8b7bec8291c2f0c8ff55d64df25a2ed"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
