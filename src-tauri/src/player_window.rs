@@ -1,10 +1,11 @@
 use librespot::{core::SpotifyId, metadata::Track};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 
 use crate::{
-    player, playlist_window,
+    playlist_window,
     settings::{PlayerSettings, Settings},
+    spotify::SharedPlayer,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -54,8 +55,8 @@ pub fn get_player_settings() -> PlayerSettings {
 }
 
 #[tauri::command]
-pub async fn set_volume(volume: u16) -> Result<(), ()> {
-    player().lock().await.set_volume(volume);
+pub async fn set_volume(volume: u16, player: State<'_, SharedPlayer>) -> Result<(), ()> {
+    player.lock().await.set_volume(volume);
     Settings::current_mut().player.volume = volume;
     Ok(())
 }
@@ -66,33 +67,32 @@ pub fn set_double_size(active: bool) {
 }
 
 #[tauri::command]
-pub async fn take_latest_spectrum() -> Result<Vec<(f32, f32)>, ()> {
-    let spotify_player = &mut player().lock().await;
-    Ok(spotify_player.take_latest_spectrum())
+pub async fn take_latest_spectrum(player: State<'_, SharedPlayer>) -> Result<Vec<(f32, f32)>, ()> {
+    Ok(player.lock().await.take_latest_spectrum())
 }
 
 #[tauri::command]
-pub async fn load_track(uri: &str) -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-    spotify_player
+pub async fn load_track(uri: &str, player: State<'_, SharedPlayer>) -> Result<(), String> {
+    player
+        .lock()
+        .await
         .load_track(uri)
         .await
         .map_err(|e| format!("TODO: Failed to load track ({e:?})"))
 }
 
 #[tauri::command]
-pub async fn play() -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-    spotify_player.play();
+pub async fn play(player: State<'_, SharedPlayer>) -> Result<(), String> {
+    player.lock().await.play();
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn pause() -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-
-    spotify_player
+pub async fn pause(player: State<'_, SharedPlayer>) -> Result<(), String> {
+    player
+        .lock()
+        .await
         .pause()
         .await
         .map_err(|e| format!("TODO: Failed to pause ({e:?})"))?;
@@ -101,10 +101,10 @@ pub async fn pause() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn stop() -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-
-    spotify_player
+pub async fn stop(player: State<'_, SharedPlayer>) -> Result<(), String> {
+    player
+        .lock()
+        .await
         .stop()
         .await
         .map_err(|e| format!("TODO: Failed to stop ({e:?})"))?;
@@ -113,11 +113,14 @@ pub async fn stop() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn get_track_metadata(uri: &str) -> Result<TrackMetadata, String> {
-    let spotify_player = &mut player().lock().await;
-
+pub async fn get_track_metadata(
+    uri: &str,
+    player: State<'_, SharedPlayer>,
+) -> Result<TrackMetadata, String> {
     Ok(TrackMetadata::from(
-        &spotify_player
+        &player
+            .lock()
+            .await
             .get_track(
                 SpotifyId::from_uri(uri)
                     .map_err(|e| format!("TODO: Failed to get track by uri '{uri}' ({e:?})"))?,
@@ -128,9 +131,13 @@ pub async fn get_track_metadata(uri: &str) -> Result<TrackMetadata, String> {
 }
 
 #[tauri::command]
-pub async fn get_track_ids(uri: &str) -> Result<Vec<String>, String> {
-    let spotify_player = &mut player().lock().await;
-    Ok(spotify_player
+pub async fn get_track_ids(
+    uri: &str,
+    player: State<'_, SharedPlayer>,
+) -> Result<Vec<String>, String> {
+    Ok(player
+        .lock()
+        .await
         .get_track_ids(
             SpotifyId::from_uri(uri)
                 .map_err(|e| format!("TODO: Failed to get playlist by uri '{uri}' ({e:?})"))?,
@@ -143,11 +150,8 @@ pub async fn get_track_ids(uri: &str) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub async fn seek(position_ms: u32) -> Result<(), String> {
-    let spotify_player = &mut player().lock().await;
-
-    spotify_player.seek(position_ms);
-
+pub async fn seek(position_ms: u32, player: State<'_, SharedPlayer>) -> Result<(), String> {
+    player.lock().await.seek(position_ms);
     Ok(())
 }
 
