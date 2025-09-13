@@ -1,5 +1,5 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, atomic::AtomicU16},
     time::Duration,
 };
 
@@ -27,78 +27,28 @@ use tauri::AppHandle;
 use thiserror::Error;
 
 use crate::settings::get_config_dir;
-
-pub struct SpotifyPlayer {
-    player: Arc<Player>,
-    session: Session,
-    volume: Arc<Mutex<u16>>,
+pub type SharedPlayer = Arc<tokio::sync::Mutex<SpotifyPlayer>>;
+pub struct SpotifySession {
+    inner: Session,
     cache: Cache,
-
-    visualizer: Arc<Mutex<Visualizer>>,
 }
 
-impl SpotifyPlayer {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
+impl Default for SpotifySession {
+    fn default() -> Self {
         let cache = get_config_dir()
             .and_then(|config_dir| {
                 Cache::new(Some(config_dir.clone()), None, Some(config_dir), None).ok()
             })
             .expect("a cache to be created");
-
-        let player_config = PlayerConfig {
-            position_update_interval: None,
-            bitrate: Bitrate::Bitrate320,
-            gapless: true,
-            normalisation: false,
-            normalisation_type: NormalisationType::default(),
-            normalisation_method: NormalisationMethod::Dynamic,
-            normalisation_pregain_db: 0.0,
-            normalisation_threshold_dbfs: -2.0,
-            normalisation_attack_cf: duration_to_coefficient(Duration::from_millis(5)),
-            normalisation_release_cf: duration_to_coefficient(Duration::from_millis(100)),
-            normalisation_knee_db: 5.0,
-            passthrough: false,
-            ditherer: Some(mk_ditherer::<TriangularDitherer>),
-        };
-
-        struct SpotiampVolumeGetter {
-            volume: Arc<Mutex<u16>>,
-        }
-
-        impl VolumeGetter for SpotiampVolumeGetter {
-            fn attenuation_factor(&self) -> f64 {
-                *self.volume.lock().unwrap() as f64 / 100.0
-            }
-        }
         let session = Session::new(SessionConfig::default(), Some(cache.clone()));
-        let volume = Arc::new(Mutex::new(Settings::current().player.volume));
-        let visualizer = Arc::new(Mutex::new(Visualizer::new()));
-        let player = Player::new(
-            player_config,
-            session.clone(),
-            Box::new(SpotiampVolumeGetter {
-                volume: volume.clone(),
-            }),
-            {
-                let visualizer = visualizer.clone();
-                let volume = volume.clone();
-                move || {
-                    let audio_format = AudioFormat::F32;
-                    Box::new(SpotiampSink::new(None, audio_format, visualizer, volume))
-                }
-            },
-        );
-
         Self {
-            player,
-            session,
-            volume,
+            inner: session,
             cache,
-            visualizer,
         }
     }
+}
 
+impl SpotifySession {
     pub async fn login(&self, app: &AppHandle) -> Result<(), SessionError> {
         log::debug!("Getting credentials");
         let credentials = match self.cache.credentials() {
@@ -109,7 +59,7 @@ impl SpotifyPlayer {
             }
         };
 
-        self.session
+        self.inner
             .connect(credentials, true)
             .await
             .map_err(|e| SessionError::ConnectError { e })?;
@@ -145,11 +95,11 @@ impl SpotifyPlayer {
         window.on_window_event({
             let token_received = token_received.clone();
             move |e| {
-                if let tauri::WindowEvent::CloseRequested { .. } = &e {
-                    if !*token_received.lock().unwrap() {
-                        log::info!("No token received when closing login window. Exiting.");
-                        std::process::exit(0);
-                    }
+                if let tauri::WindowEvent::CloseRequested { .. } = &e
+                    && !*token_received.lock().unwrap()
+                {
+                    log::info!("No token received when closing login window. Exiting.");
+                    std::process::exit(0);
                 }
             }
         });
@@ -164,6 +114,70 @@ impl SpotifyPlayer {
         Ok(Credentials::with_access_token(
             token.access_token().secret(),
         ))
+    }
+}
+
+pub struct SpotifyPlayer {
+    player: Arc<Player>,
+    pub session: SpotifySession,
+    volume: Arc<AtomicU16>,
+
+    visualizer: Arc<Mutex<Visualizer>>,
+}
+
+impl SpotifyPlayer {
+    #[allow(clippy::new_without_default)]
+    pub fn new(session: SpotifySession) -> Self {
+        let player_config = PlayerConfig {
+            position_update_interval: None,
+            bitrate: Bitrate::Bitrate320,
+            gapless: true,
+            normalisation: false,
+            normalisation_type: NormalisationType::default(),
+            normalisation_method: NormalisationMethod::Dynamic,
+            normalisation_pregain_db: 0.0,
+            normalisation_threshold_dbfs: -2.0,
+            normalisation_attack_cf: duration_to_coefficient(Duration::from_millis(5)),
+            normalisation_release_cf: duration_to_coefficient(Duration::from_millis(100)),
+            normalisation_knee_db: 5.0,
+            passthrough: false,
+            ditherer: Some(mk_ditherer::<TriangularDitherer>),
+        };
+
+        struct SpotiampVolumeGetter {
+            volume: Arc<AtomicU16>,
+        }
+
+        impl VolumeGetter for SpotiampVolumeGetter {
+            fn attenuation_factor(&self) -> f64 {
+                self.volume.load(std::sync::atomic::Ordering::Relaxed) as f64 / 100.0
+            }
+        }
+
+        let volume = Arc::new(AtomicU16::new(Settings::current().player.volume));
+        let visualizer = Arc::new(Mutex::new(Visualizer::new()));
+        let player = Player::new(
+            player_config,
+            session.inner.clone(),
+            Box::new(SpotiampVolumeGetter {
+                volume: volume.clone(),
+            }),
+            {
+                let visualizer = visualizer.clone();
+                let volume = volume.clone();
+                move || {
+                    let audio_format = AudioFormat::F32;
+                    Box::new(SpotiampSink::new(None, audio_format, visualizer, volume))
+                }
+            },
+        );
+
+        Self {
+            player,
+            session,
+            volume,
+            visualizer,
+        }
     }
 
     pub async fn load_track(&self, uri: &str) -> Result<(), PlayError> {
@@ -195,7 +209,7 @@ impl SpotifyPlayer {
     pub async fn get_track_ids(&self, playlist_id: SpotifyId) -> Result<Vec<SpotifyId>, PlayError> {
         match playlist_id.item_type {
             librespot::core::spotify_id::SpotifyItemType::Playlist => {
-                Ok(Playlist::get(&self.session, &playlist_id)
+                Ok(Playlist::get(&self.session.inner, &playlist_id)
                     .await
                     .map_err(|e| PlayError::MetadataError { e })?
                     .contents
@@ -214,7 +228,7 @@ impl SpotifyPlayer {
                     .collect())
             }
             librespot::core::spotify_id::SpotifyItemType::Album => {
-                Ok(Album::get(&self.session, &playlist_id)
+                Ok(Album::get(&self.session.inner, &playlist_id)
                     .await
                     .map_err(|e| PlayError::MetadataError { e })?
                     .tracks()
@@ -233,7 +247,7 @@ impl SpotifyPlayer {
             librespot::core::spotify_id::SpotifyItemType::Track => {
                 log::debug!("Getting track data: {:?}", track_id);
                 //TODO: Check why we get `TrackMetadataError { e: Error { kind: Internal, error: ErrorMessage("channel closed") } }` here after leaving the mac in standby for a while.
-                Track::get(&self.session, &track_id)
+                Track::get(&self.session.inner, &track_id)
                     .await
                     .map_err(|e| PlayError::MetadataError { e })
             }
@@ -242,12 +256,13 @@ impl SpotifyPlayer {
     }
 
     pub fn set_volume(&mut self, volume: u16) {
-        *self.volume.lock().unwrap() = volume;
-        self.cache.save_volume(volume);
+        self.volume
+            .store(volume, std::sync::atomic::Ordering::Relaxed);
+        self.session.cache.save_volume(volume);
     }
 
     pub fn get_volume(&self) -> u16 {
-        *self.volume.lock().unwrap()
+        self.volume.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn seek(&self, position_ms: u32) {

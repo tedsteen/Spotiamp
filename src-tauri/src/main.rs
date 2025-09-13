@@ -6,5 +6,5 @@ fn main() {
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .expect("A crypto provider");
-    spotiamp_lib::run()
+    spotiamp_lib::run();
 }

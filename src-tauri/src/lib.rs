@@ -1,23 +1,19 @@
-use std::sync::OnceLock;
+use std::sync::Arc;
 
 use librespot::playback::player::PlayerEvent;
 use serde::{Deserialize, Serialize};
 use spotify::{SessionError, SpotifyPlayer};
-use tauri::{AppHandle, Emitter, Listener};
+use tauri::{AppHandle, Emitter, Listener, Manager};
 use thiserror::Error;
-use tokio::sync::Mutex;
+
+use crate::spotify::SpotifySession;
 mod oauth;
 mod player_window;
 mod playlist_window;
 mod settings;
 mod sink;
-mod spotify;
+pub mod spotify;
 mod visualizer;
-
-pub fn player() -> &'static Mutex<SpotifyPlayer> {
-    static MEM: OnceLock<Mutex<SpotifyPlayer>> = OnceLock::new();
-    MEM.get_or_init(|| Mutex::new(SpotifyPlayer::new()))
-}
 
 #[derive(Debug, Error)]
 #[allow(clippy::enum_variant_names)]
@@ -54,19 +50,23 @@ enum PlaylistWindowEvent {
 }
 
 async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
-    let p = player().lock().await;
-    p.login(app_handle)
+    let session = SpotifySession::default();
+    session
+        .login(app_handle)
         .await
         .map_err(|e| StartError::LoginFailed { e })?;
 
-    let mut channel = p.get_player_event_channel();
     let player_window =
         player_window::build_window(app_handle).map_err(|e| StartError::WindowCreationFailed {
             window_name: "Player".to_string(),
             e,
         })?;
-    let player_window_ref = player_window.clone();
+    let player = Arc::new(tokio::sync::Mutex::new(SpotifyPlayer::new(session)));
+
+    app_handle.manage(player.clone());
     tauri::async_runtime::spawn(async move {
+        let mut channel = player.lock().await.get_player_event_channel();
+
         while let Some(player_event) = channel.recv().await {
             if let Some(player_event) = match player_event {
                 PlayerEvent::Playing {
@@ -114,23 +114,8 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
                 }
                 _ => None,
             } {
-                let _ = player_window_ref.emit("player", player_event);
+                let _ = player_window.emit("player", player_event);
             }
-        }
-    });
-
-    let app_handle = app_handle.clone();
-    app_handle.clone().listen("playerWindow", move |event| {
-        match serde_json::from_str::<PlayerWindowEvent>(event.payload()) {
-            Ok(e) => match e {
-                PlayerWindowEvent::CloseRequested => {
-                    std::process::exit(0);
-                }
-            },
-            Err(e) => log::debug!(
-                "Could not deserialize playlistWindow event: '{:?}' ({e:?}) - ignoring",
-                event.payload()
-            ),
         }
     });
 
@@ -161,7 +146,19 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
-
+            app_handle.listen("playerWindow", move |event| {
+                match serde_json::from_str::<PlayerWindowEvent>(event.payload()) {
+                    Ok(e) => match e {
+                        PlayerWindowEvent::CloseRequested => {
+                            std::process::exit(0);
+                        }
+                    },
+                    Err(e) => log::debug!(
+                        "Could not deserialize playlistWindow event: '{:?}' ({e:?}) - ignoring",
+                        event.payload()
+                    ),
+                }
+            });
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = start_app(&app_handle).await {
                     log::error!("Failed to start ({e:?})");

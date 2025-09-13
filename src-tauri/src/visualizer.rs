@@ -9,7 +9,7 @@ use librespot::playback::SAMPLE_RATE;
 pub struct Visualizer {
     stream: Stream,
 }
-pub fn stereo_to_mono(in_v: Vec<f32>) -> Vec<f32> {
+pub fn stereo_to_mono(in_v: &[f32]) -> Vec<f32> {
     let new_size = in_v.len() / 2;
     let mut result = Vec::with_capacity(new_size);
     for i in 0..new_size {
@@ -42,7 +42,7 @@ impl Visualizer {
             }),
         }
     }
-    pub fn push_samples(&mut self, samples: Vec<f32>) {
+    pub fn push_samples(&mut self, samples: &[f32]) {
         self.stream.push_data(stereo_to_mono(samples));
         self.stream.update();
     }
