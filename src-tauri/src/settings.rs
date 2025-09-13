@@ -15,10 +15,10 @@ use tauri::LogicalPosition;
 pub fn get_config_dir() -> Option<PathBuf> {
     let path =
         ProjectDirs::from("org.darkbits", "", "spotiamp").map(|pd| pd.config_dir().to_path_buf());
-    if let Some(path) = path.clone() {
-        if let Err(e) = create_dir_all(path) {
-            log::error!("Could not create path: {:?}", e);
-        }
+    if let Some(path) = path.clone()
+        && let Err(e) = create_dir_all(path)
+    {
+        log::error!("Could not create path: {:?}", e);
     }
     path
 }

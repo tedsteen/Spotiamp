@@ -50,7 +50,7 @@ enum PlaylistWindowEvent {
 }
 
 async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
-    let session = SpotifySession::new();
+    let session = SpotifySession::default();
     session
         .login(app_handle)
         .await

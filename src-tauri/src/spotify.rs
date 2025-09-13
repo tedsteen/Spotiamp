@@ -33,8 +33,8 @@ pub struct SpotifySession {
     cache: Cache,
 }
 
-impl SpotifySession {
-    pub fn new() -> Self {
+impl Default for SpotifySession {
+    fn default() -> Self {
         let cache = get_config_dir()
             .and_then(|config_dir| {
                 Cache::new(Some(config_dir.clone()), None, Some(config_dir), None).ok()
@@ -46,6 +46,9 @@ impl SpotifySession {
             cache,
         }
     }
+}
+
+impl SpotifySession {
     pub async fn login(&self, app: &AppHandle) -> Result<(), SessionError> {
         log::debug!("Getting credentials");
         let credentials = match self.cache.credentials() {
