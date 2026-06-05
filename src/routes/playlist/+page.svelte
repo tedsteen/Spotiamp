@@ -3,9 +3,9 @@
     enterExitViewport,
     range,
     handleDrop,
-    emitWindowEvent,
     REACTIVE_WINDOW_SIZE,
   } from "$lib/common.svelte.js";
+  import { emitWindowEvent } from "$lib/events.svelte.js";
   import { onMount } from "svelte";
   import { Playlist } from "$lib/playlist.svelte";
   import { invoke } from "@tauri-apps/api/core";

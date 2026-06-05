@@ -1,18 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
-import { emitWindowEvent, enterExitViewportObserver, REACTIVE_WINDOW_SIZE, SpotifyTrack, SpotifyUri, subscribeToWindowEvent } from "./common.svelte";
-import memoize from "lodash.memoize";
+import { enterExitViewportObserver, REACTIVE_WINDOW_SIZE } from "./common.svelte";
+import { emitWindowEvent, subscribeToWindowEvent } from "./events.svelte";
+import { SpotifyTrack, SpotifyUri } from "./spotify.svelte";
 
-class MultiTrackRow {
-    displayDuration = ""
-    /**
-     * @type {string}
-     */
-    displayName = $state("")
-    unavailable = false
+class PlaylistRow {
     /**
      * @type {HTMLElement | undefined}
      */
-    element = $state()
+    element = $state();
 
     /**
      * @param {SpotifyUri} uri
@@ -21,19 +16,34 @@ class MultiTrackRow {
     constructor(uri, playlist) {
         this.uri = uri;
         this.playlist = playlist;
-        this.displayName = uri.asString;
     }
 
     isLoaded() {
         return false;
     }
 
-    isSelected() {
-        return this.playlist.selectedRows.indexOf(this) != -1;
+    play() {
+        // noop
     }
 
-    play() {
-        //noop
+    getOnEnterViewport() {
+        return () => { };
+    }
+}
+
+class MultiTrackRow extends PlaylistRow {
+    /** @type {string} */
+    displayName = $state("")
+    displayDuration = ""
+    unavailable = false
+
+    /**
+     * @param {SpotifyUri} uri
+     * @param {Playlist} playlist
+     */
+    constructor(uri, playlist) {
+        super(uri, playlist);
+        this.displayName = uri.asString;
     }
 
     getOnEnterViewport() {
@@ -49,7 +59,7 @@ class MultiTrackRow {
                 self.playlist.rows.splice(self.playlist.rows.indexOf(self), 1);
                 // Not sure why setTimeout is needed... Svelte bug?
                 setTimeout(async () => {
-                    for (var trackId of trackIds) {
+                    for (const trackId of trackIds) {
                         await self.playlist.addRow(SpotifyUri.fromString(trackId));
                     }
                 }, 1);
@@ -60,45 +70,47 @@ class MultiTrackRow {
         };
         return eventCallback;
     }
+
+    isSelected() {
+        return this.playlist.selectedRows.includes(this);
+    }
 }
 
-class TrackRow {
+class TrackRow extends PlaylistRow {
     /**
      * @type {SpotifyTrack | undefined}
      */
     track = $state()
+    /**
+     * @type {Promise<SpotifyTrack> | undefined}
+     */
+    trackPromise
     loadingMessage = $state("")
     displayName = $derived(this.track ? this.track.displayName : this.loadingMessage)
     displayDuration = $derived(this.track ? this.track.displayDuration : '')
     unavailable = $derived(this.track ? this.track.unavailable : false)
-    /**
-     * @type {HTMLElement | undefined}
-     */
-    element = $state()
 
     /**
      * @param {SpotifyUri} uri
      * @param {Playlist} playlist
      */
     constructor(uri, playlist) {
-        this.playlist = playlist;
-        this.uri = uri;
+        super(uri, playlist);
         this.loadingMessage = `${this.uri.asString}`;
-        this.populateTrack = memoize(() => {
-            /**
-             * @type {Promise<SpotifyTrack>}
-             */
-            const promise = new Promise((resolve, reject) => {
-                SpotifyTrack.loadFromUri(this.uri).then((track) => {
-                    this.track = track;
-                    resolve(track);
-                }).catch((e) => {
-                    this.loadingMessage = `Failed to load track ${this.uri.id} (${e})`;
-                    reject(e);
-                });
+    }
+
+    populateTrack() {
+        this.trackPromise ??= SpotifyTrack.loadFromUri(this.uri)
+            .then((track) => {
+                this.track = track;
+                return track;
+            })
+            .catch((e) => {
+                this.loadingMessage = `Failed to load track ${this.uri.id} (${e})`;
+                throw e;
             });
-            return promise;
-        });
+
+        return this.trackPromise;
     }
 
     getOnEnterViewport() {
@@ -132,7 +144,7 @@ class TrackRow {
 
     async play() {
         await this.loadTrack();
-        await emitWindowEvent("playlistWindow", { PlayRequsted: null })
+        await emitWindowEvent("playlistWindow", { PlayRequested: null })
     }
 
     isLoaded() {
@@ -140,7 +152,7 @@ class TrackRow {
     }
 
     isSelected() {
-        return this.playlist.selectedRows.indexOf(this) != -1;
+        return this.playlist.selectedRows.includes(this);
     }
 }
 
@@ -167,17 +179,17 @@ export class Playlist {
     constructor(uris) {
         $effect(() => {
             const selectedRow = this.selectedRows[0];
-            if (selectedRow) {
-                if (selectedRow.element) {
-                    const selectedRowElement = selectedRow.element;
-                    var rect = selectedRowElement.getBoundingClientRect();
+            if (!selectedRow?.element) {
+                return;
+            }
 
-                    if (rect.top < 20) {
-                        selectedRowElement.scrollIntoView(true);
-                    } else if (rect.bottom > this.height * 29 - 38) {
-                        selectedRowElement.scrollIntoView(false);
-                    }
-                }
+            const selectedRowElement = selectedRow.element;
+            const rect = selectedRowElement.getBoundingClientRect();
+
+            if (rect.top < 20) {
+                selectedRowElement.scrollIntoView(true);
+            } else if (rect.bottom > this.height * 29 - 38) {
+                selectedRowElement.scrollIntoView(false);
             }
         })
 
@@ -185,19 +197,10 @@ export class Playlist {
         * @param {DocumentEventMap["keydown"]} e
         */
         const playlistKeyDownListener = (e) => {
-            const selectedRow = this.selectedRows[0];
-            if (selectedRow) {
-                let nextRow;
-                if (e.key == "ArrowDown") {
-                    const currRowIndex = this.rows.indexOf(selectedRow);
-                    nextRow = this.rows[currRowIndex + 1];
-                } else if (e.key == "ArrowUp") {
-                    const currRowIndex = this.rows.indexOf(selectedRow);
-                    nextRow = this.rows[currRowIndex - 1];
-                }
-                if (nextRow) {
-                    this.selectedRows = [nextRow];
-                }
+            if (e.key == "ArrowDown") {
+                this.selectRelative(1);
+            } else if (e.key == "ArrowUp") {
+                this.selectRelative(-1);
             }
         }
         document.addEventListener("keydown", playlistKeyDownListener);
@@ -229,7 +232,7 @@ export class Playlist {
         });
 
         (async () => {
-            for (let uri of uris) {
+            for (const uri of uris) {
                 await this.addRow(SpotifyUri.fromString(uri));
             }
         })();
@@ -249,7 +252,9 @@ export class Playlist {
      * @param {SpotifyUri} uri
      */
     async addRow(uri) {
-        const row = (uri.type == "playlist" || uri.type == "album") ? new MultiTrackRow(uri, this) : new TrackRow(uri, this);
+        const row = (uri.type == "playlist" || uri.type == "album")
+            ? new MultiTrackRow(uri, this)
+            : new TrackRow(uri, this);
         this.rows.push(row);
         if (!this.loadedRow && row instanceof TrackRow) {
             await row.loadTrack();
@@ -263,8 +268,45 @@ export class Playlist {
         for (const url of urls) {
             const uri = SpotifyUri.fromUrl(url);
             await this.addRow(uri);
-            invoke("add_uri", { uri: uri.asString })
+            invoke("add_uri", { uri: uri.asString });
         }
+    }
+
+    /**
+     * @param {number} offset
+     */
+    selectRelative(offset) {
+        const selectedRow = this.selectedRows[0];
+        if (!selectedRow) {
+            return;
+        }
+
+        const row = this.rows[this.rows.indexOf(selectedRow) + offset];
+        if (row) {
+            this.selectedRows = [row];
+        }
+    }
+
+    /**
+     * @param {number} offset
+     * @param {boolean} skipUnavailable
+     * @returns {Promise<boolean>} true if the end in that direction has been reached
+     */
+    async move(offset, skipUnavailable) {
+        const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
+        const row = this.rows[currRowIndex + offset];
+        if (!row) {
+            return true;
+        }
+
+        if (row instanceof TrackRow) {
+            const track = await row.loadTrack();
+            if (track && skipUnavailable && track.unavailable) {
+                return await this.move(offset, skipUnavailable);
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -272,21 +314,7 @@ export class Playlist {
      * @returns {Promise<boolean>} true if end has been reached
      */
     async next(skipUnavailable = false) {
-        const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
-        const nextRow = this.rows[currRowIndex + 1];
-        if (!nextRow) {
-            return true;
-        }
-
-        if (nextRow instanceof TrackRow) {
-            const track = await nextRow.loadTrack();
-            if (track) {
-                if (skipUnavailable && track.unavailable) {
-                    return await this.next(skipUnavailable);
-                }
-            }
-        }
-        return false;
+        return await this.move(1, skipUnavailable);
     }
 
     /**
@@ -294,20 +322,7 @@ export class Playlist {
      * @returns {Promise<boolean>} true if top has been reached
      */
     async previous(skipUnavailable = false) {
-        const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
-        const previousRow = this.rows[currRowIndex - 1];
-        if (!previousRow) {
-            return true;
-        }
-        if (previousRow instanceof TrackRow) {
-            const track = await previousRow.loadTrack();
-            if (track) {
-                if (skipUnavailable && track.unavailable) {
-                    return await this.previous(skipUnavailable);
-                }
-            }
-        }
-        return false;
+        return await this.move(-1, skipUnavailable);
     }
 
 }

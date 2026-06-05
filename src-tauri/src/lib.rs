@@ -7,6 +7,7 @@ use tauri::{AppHandle, Emitter, Listener, Manager};
 use thiserror::Error;
 
 use crate::spotify::SpotifySession;
+mod app_window;
 mod oauth;
 mod player_window;
 mod playlist_window;
@@ -35,18 +36,58 @@ enum SpotiampPlayerEvent {
     EndOfTrack { uri: String },
     PositionCorrection { uri: String, position_ms: u32 },
     Seeked { uri: String, position_ms: u32 },
-    TrackChanged { uri: String },
     Playing { uri: String, position_ms: u32 },
+}
+
+impl SpotiampPlayerEvent {
+    fn from_player_event(player_event: PlayerEvent) -> Option<Self> {
+        match player_event {
+            PlayerEvent::Playing {
+                track_id,
+                position_ms,
+                ..
+            } => Some(Self::Playing {
+                uri: track_id.to_uri().expect("a valid uri"),
+                position_ms,
+            }),
+            PlayerEvent::Stopped { track_id, .. } => Some(Self::Stopped {
+                uri: track_id.to_uri().expect("a valid uri"),
+            }),
+            PlayerEvent::Paused {
+                track_id,
+                position_ms,
+                ..
+            } => Some(Self::Paused {
+                uri: track_id.to_uri().expect("a valid uri"),
+                position_ms,
+            }),
+            PlayerEvent::EndOfTrack { track_id, .. } => Some(Self::EndOfTrack {
+                uri: track_id.to_uri().expect("a valid uri"),
+            }),
+            PlayerEvent::PositionCorrection {
+                track_id,
+                position_ms,
+                ..
+            } => Some(Self::PositionCorrection {
+                uri: track_id.to_uri().expect("a valid uri"),
+                position_ms,
+            }),
+            PlayerEvent::Seeked {
+                track_id,
+                position_ms,
+                ..
+            } => Some(Self::Seeked {
+                uri: track_id.to_uri().expect("a valid uri"),
+                position_ms,
+            }),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Deserialize)]
 enum PlayerWindowEvent {
     CloseRequested,
-}
-
-#[derive(Clone, Deserialize)]
-enum PlaylistWindowEvent {
-    Ready,
 }
 
 async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
@@ -68,52 +109,7 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
         let mut channel = player.lock().await.get_player_event_channel();
 
         while let Some(player_event) = channel.recv().await {
-            if let Some(player_event) = match player_event {
-                PlayerEvent::Playing {
-                    track_id,
-                    position_ms,
-                    ..
-                } => Some(SpotiampPlayerEvent::Playing {
-                    uri: track_id.to_uri().expect("a valid uri"),
-                    position_ms,
-                }),
-                PlayerEvent::Stopped { track_id, .. } => Some(SpotiampPlayerEvent::Stopped {
-                    uri: track_id.to_uri().expect("a valid uri"),
-                }),
-                PlayerEvent::Paused {
-                    track_id,
-                    position_ms,
-                    ..
-                } => Some(SpotiampPlayerEvent::Paused {
-                    uri: track_id.to_uri().expect("a valid uri"),
-                    position_ms,
-                }),
-                PlayerEvent::EndOfTrack { track_id, .. } => Some(SpotiampPlayerEvent::EndOfTrack {
-                    uri: track_id.to_uri().expect("a valid uri"),
-                }),
-                PlayerEvent::PositionCorrection {
-                    track_id,
-                    position_ms,
-                    ..
-                } => Some(SpotiampPlayerEvent::PositionCorrection {
-                    uri: track_id.to_uri().expect("a valid uri"),
-                    position_ms,
-                }),
-                PlayerEvent::Seeked {
-                    track_id,
-                    position_ms,
-                    ..
-                } => Some(SpotiampPlayerEvent::Seeked {
-                    uri: track_id.to_uri().expect("a valid uri"),
-                    position_ms,
-                }),
-                PlayerEvent::TrackChanged { audio_item } => {
-                    Some(SpotiampPlayerEvent::TrackChanged {
-                        uri: audio_item.track_id.to_uri().expect("a valid uri"),
-                    })
-                }
-                _ => None,
-            } {
+            if let Some(player_event) = SpotiampPlayerEvent::from_player_event(player_event) {
                 let _ = player_window.emit("player", player_event);
             }
         }

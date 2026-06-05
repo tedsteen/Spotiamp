@@ -10,15 +10,9 @@ pub struct Visualizer {
     stream: Stream,
 }
 pub fn stereo_to_mono(in_v: &[f32]) -> Vec<f32> {
-    let new_size = in_v.len() / 2;
-    let mut result = Vec::with_capacity(new_size);
-    for i in 0..new_size {
-        #[allow(clippy::identity_op)]
-        let lv = in_v[i * 2 + 0];
-        let rv = in_v[i * 2 + 1];
-        result.push((lv + rv) / 2.0);
-    }
-    result
+    in_v.chunks_exact(2)
+        .map(|chunk| (chunk[0] + chunk[1]) / 2.0)
+        .collect()
 }
 
 impl Visualizer {
@@ -49,10 +43,9 @@ impl Visualizer {
 
     pub fn take_latest_spectrum(&mut self) -> Vec<(f32, f32)> {
         let freqs = self.stream.get_frequencies();
-        if freqs.is_empty() {
-            return vec![];
-        }
-        let data = &self.stream.get_frequencies()[0];
-        data.iter().map(|d| (d.freq, d.volume)).collect()
+        freqs
+            .first()
+            .map(|data| data.iter().map(|d| (d.freq, d.volume)).collect())
+            .unwrap_or_default()
     }
 }

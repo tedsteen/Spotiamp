@@ -3,7 +3,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 
 use crate::{
-    playlist_window,
+    app_window, playlist_window,
     settings::{PlayerSettings, Settings},
     spotify::SharedPlayer,
 };
@@ -78,7 +78,7 @@ pub async fn load_track(uri: &str, player: State<'_, SharedPlayer>) -> Result<()
         .await
         .load_track(uri)
         .await
-        .map_err(|e| format!("TODO: Failed to load track ({e:?})"))
+        .map_err(|e| format!("Failed to load track ({e:?})"))
 }
 
 #[tauri::command]
@@ -95,7 +95,7 @@ pub async fn pause(player: State<'_, SharedPlayer>) -> Result<(), String> {
         .await
         .pause()
         .await
-        .map_err(|e| format!("TODO: Failed to pause ({e:?})"))?;
+        .map_err(|e| format!("Failed to pause ({e:?})"))?;
 
     Ok(())
 }
@@ -107,7 +107,7 @@ pub async fn stop(player: State<'_, SharedPlayer>) -> Result<(), String> {
         .await
         .stop()
         .await
-        .map_err(|e| format!("TODO: Failed to stop ({e:?})"))?;
+        .map_err(|e| format!("Failed to stop ({e:?})"))?;
 
     Ok(())
 }
@@ -123,7 +123,7 @@ pub async fn get_track_metadata(
             .await
             .get_track(
                 SpotifyUri::from_uri(uri)
-                    .map_err(|e| format!("TODO: Failed to get track by uri '{uri}' ({e:?})"))?,
+                    .map_err(|e| format!("Failed to get track by uri '{uri}' ({e:?})"))?,
             )
             .await
             .map_err(|e| format!("Could not load track ({e:?})"))?,
@@ -140,7 +140,7 @@ pub async fn get_track_ids(
         .await
         .get_track_ids(
             SpotifyUri::from_uri(uri)
-                .map_err(|e| format!("TODO: Failed to get playlist by uri '{uri}' ({e:?})"))?,
+                .map_err(|e| format!("Failed to get playlist by uri '{uri}' ({e:?})"))?,
         )
         .await
         .map_err(|e| format!("Could not load playlist tracks ({e:?})"))?
@@ -199,40 +199,18 @@ pub fn build_window(app_handle: &AppHandle) -> Result<WebviewWindow, tauri::Erro
         .inner_size
         .clone()
         .unwrap_or_default();
-    let window = tauri::WebviewWindowBuilder::new(
-        app_handle,
-        "player",
-        tauri::WebviewUrl::App("player".into()),
-    )
-    .title("Player")
-    .inner_size(inner_size.width as f64, inner_size.height as f64)
-    .decorations(false)
-    .shadow(false)
-    .closable(false)
-    .maximizable(false)
-    .minimizable(false)
-    .resizable(false)
-    .disable_drag_drop_handler()
-    .accept_first_mouse(true)
-    .build()?;
+    let window =
+        app_window::build_frameless_window(app_handle, "player", "Player", "player", inner_size)?;
 
-    if let Some(logical_position) = &Settings::current().player.window_state.get_position() {
-        let _ = window.set_position(*logical_position);
-    }
-
-    window.on_window_event({
-        let window = window.clone();
-        move |window_event| {
-            if let tauri::WindowEvent::Moved(physical_position) = &window_event {
-                Settings::current_mut().player.window_state.set_position(
-                    physical_position.to_logical(
-                        window
-                            .scale_factor()
-                            .expect("a scale factor on the player window"),
-                    ),
-                );
-            }
-        }
+    app_window::apply_position(
+        &window,
+        Settings::current().player.window_state.get_position(),
+    );
+    app_window::remember_position(&window, "player window", |position| {
+        Settings::current_mut()
+            .player
+            .window_state
+            .set_position(position);
     });
 
     Ok(window)

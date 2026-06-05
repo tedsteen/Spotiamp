@@ -14,8 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "@tauri-apps/api": "^2.11",
-    "@tauri-apps/plugin-dialog": "^2.7",
-    "lodash.memoize": "^4.1"
+    "@tauri-apps/plugin-dialog": "^2.7"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0",
