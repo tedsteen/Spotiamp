@@ -2,15 +2,12 @@
   import { invoke } from "@tauri-apps/api/core";
 
   import {
-    durationToMMSS,
-    durationToString,
-    SpotifyTrack,
-    emitWindowEvent,
     handleError,
-    subscribeToWindowEvent,
     handleDrop,
     REACTIVE_WINDOW_SIZE,
   } from "$lib/common.svelte.js";
+  import { emitWindowEvent, subscribeToWindowEvent } from "$lib/events.svelte.js";
+  import { durationToMMSS, durationToString, SpotifyTrack } from "$lib/spotify.svelte.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
@@ -20,15 +17,27 @@
   /** @type {{data: import('./$types').PageData}} */
   const { data: playerSettings } = $props();
 
+  function initialVolume() {
+    return playerSettings.volume;
+  }
+
+  function initialShowPlaylist() {
+    return playerSettings.show_playlist;
+  }
+
+  function initialDoubleSizeActive() {
+    return playerSettings.double_size_active;
+  }
+
   /**
    * @type {SpotifyTrack | undefined}
    */
   let loadedTrack = $state();
-  let volume = $state(playerSettings.volume);
+  let volume = $state(initialVolume());
   let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
-  let showPlaylist = $state(playerSettings.show_playlist);
-  let doubleSizeActive = $state(playerSettings.double_size_active);
+  let showPlaylist = $state(initialShowPlaylist());
+  let doubleSizeActive = $state(initialDoubleSizeActive());
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */
@@ -147,7 +156,7 @@
         if (event.TrackLoaded) {
           let track = event.TrackLoaded;
           loadTrack(track);
-        } else if (event.PlayRequsted !== undefined) {
+        } else if (event.PlayRequested !== undefined) {
           play();
         } else if (event.EndReached !== undefined) {
           stop();
@@ -158,23 +167,21 @@
     const playerEventsSubscription = subscribeToWindowEvent(
       "player",
       (event) => {
-        if (event.TrackChanged) {
-          let { uri } = event.TrackChanged;
-        } else if (event.Playing) {
-          let { position_ms } = event.Playing;
+        if (event.Playing) {
+          const { position_ms } = event.Playing;
           playerState = "playing";
           seekPosition = position_ms;
         } else if (event.Paused) {
-          let { position_ms } = event.Paused;
+          const { position_ms } = event.Paused;
           playerState = "paused";
           seekPosition = position_ms;
         } else if (event.Stopped) {
           playerState = "stopped";
         } else if (event.PositionCorrection) {
-          let { position_ms } = event.PositionCorrection;
+          const { position_ms } = event.PositionCorrection;
           seekPosition = position_ms;
         } else if (event.Seeked) {
-          let { position_ms } = event.Seeked;
+          const { position_ms } = event.Seeked;
           seekPosition = position_ms;
         }
       }

@@ -117,9 +117,7 @@
     xShift = 0;
   });
 
-  /**
-   * @type {number | undefined}
-   */
+  /** @type {ReturnType<typeof setInterval> | undefined} */
   let ticker;
   $effect(() => {
     clearInterval(ticker);

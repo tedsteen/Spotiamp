@@ -3,21 +3,31 @@
     enterExitViewport,
     range,
     handleDrop,
-    emitWindowEvent,
     REACTIVE_WINDOW_SIZE,
   } from "$lib/common.svelte.js";
+  import { emitWindowEvent } from "$lib/events.svelte.js";
   import { onMount } from "svelte";
   import { Playlist } from "$lib/playlist.svelte";
   import { invoke } from "@tauri-apps/api/core";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data: playlistSettings } = $props();
-  if (playlistSettings.window_state.inner_size) {
+
+  function applyInitialWindowSize() {
+    if (!playlistSettings.window_state.inner_size) {
+      return;
+    }
+
     const { width, height } = playlistSettings.window_state.inner_size;
     REACTIVE_WINDOW_SIZE.setSize(width, height);
   }
 
-  const playlist = new Playlist(playlistSettings.uris);
+  function createInitialPlaylist() {
+    return new Playlist(playlistSettings.uris);
+  }
+
+  applyInitialWindowSize();
+  const playlist = createInitialPlaylist();
 
   /**
    * @param {DocumentEventMap["keydown"]} e
