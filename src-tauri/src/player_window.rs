@@ -1,4 +1,4 @@
-use librespot::{core::SpotifyId, metadata::Track};
+use librespot::{core::SpotifyUri, metadata::Track};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 
@@ -18,7 +18,7 @@ pub struct TrackMetadata {
 }
 impl TrackMetadata {
     pub fn new(
-        track_id: SpotifyId,
+        track_uri: &SpotifyUri,
         artist: &str,
         name: &str,
         duration: u32,
@@ -26,7 +26,7 @@ impl TrackMetadata {
     ) -> Self {
         Self {
             unavailable,
-            uri: track_id.to_uri().expect("a valid uri"),
+            uri: track_uri.to_uri().expect("a valid uri"),
             artist: artist.to_string(),
             name: name.to_string(),
             duration,
@@ -36,7 +36,7 @@ impl TrackMetadata {
 impl From<&Track> for TrackMetadata {
     fn from(track: &Track) -> Self {
         Self::new(
-            track.id,
+            &track.id,
             &track
                 .artists
                 .first()
@@ -122,7 +122,7 @@ pub async fn get_track_metadata(
             .lock()
             .await
             .get_track(
-                SpotifyId::from_uri(uri)
+                SpotifyUri::from_uri(uri)
                     .map_err(|e| format!("TODO: Failed to get track by uri '{uri}' ({e:?})"))?,
             )
             .await
@@ -139,13 +139,13 @@ pub async fn get_track_ids(
         .lock()
         .await
         .get_track_ids(
-            SpotifyId::from_uri(uri)
+            SpotifyUri::from_uri(uri)
                 .map_err(|e| format!("TODO: Failed to get playlist by uri '{uri}' ({e:?})"))?,
         )
         .await
         .map_err(|e| format!("Could not load playlist tracks ({e:?})"))?
         .iter()
-        .map(|track_id| track_id.to_uri().expect("a valid uri"))
+        .map(|track_uri| track_uri.to_uri().expect("a valid uri"))
         .collect())
 }
 

@@ -12,12 +12,22 @@
 
   /** @type {{data: import('./$types').PageData}} */
   const { data: playlistSettings } = $props();
-  if (playlistSettings.window_state.inner_size) {
+
+  function applyInitialWindowSize() {
+    if (!playlistSettings.window_state.inner_size) {
+      return;
+    }
+
     const { width, height } = playlistSettings.window_state.inner_size;
     REACTIVE_WINDOW_SIZE.setSize(width, height);
   }
 
-  const playlist = new Playlist(playlistSettings.uris);
+  function createInitialPlaylist() {
+    return new Playlist(playlistSettings.uris);
+  }
+
+  applyInitialWindowSize();
+  const playlist = createInitialPlaylist();
 
   /**
    * @param {DocumentEventMap["keydown"]} e

@@ -20,15 +20,27 @@
   /** @type {{data: import('./$types').PageData}} */
   const { data: playerSettings } = $props();
 
+  function initialVolume() {
+    return playerSettings.volume;
+  }
+
+  function initialShowPlaylist() {
+    return playerSettings.show_playlist;
+  }
+
+  function initialDoubleSizeActive() {
+    return playerSettings.double_size_active;
+  }
+
   /**
    * @type {SpotifyTrack | undefined}
    */
   let loadedTrack = $state();
-  let volume = $state(playerSettings.volume);
+  let volume = $state(initialVolume());
   let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
-  let showPlaylist = $state(playerSettings.show_playlist);
-  let doubleSizeActive = $state(playerSettings.double_size_active);
+  let showPlaylist = $state(initialShowPlaylist());
+  let doubleSizeActive = $state(initialDoubleSizeActive());
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */

@@ -126,7 +126,6 @@ async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             player_window::get_track_metadata,
             player_window::load_track,

@@ -19,7 +19,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9.34-depricated"
@@ -27,17 +26,16 @@ serde_yaml = "0.9.34-depricated"
 thiserror = "2"
 log = "0.4"
 env_logger = "0.11"
-librespot = "0.7"
-audioviz = { version = "0.6", features = ["processor"] }
-ringbuffer = "0.16"
+librespot = { version = "0.8", default-features = false, features = ["rodio-backend", "rustls-tls-native-roots"] }
+audioviz = { version = "0.6", default-features = false, features = ["spectrum"] }
 
 oauth2 = "5.0"
 rustls = "0.23"
-axum = "0.8"
-tokio = "1.48"
+axum = { version = "0.8", default-features = false, features = ["http1", "query", "tokio"] }
+tokio = { version = "1.48", default-features = false, features = ["net", "sync"] }
 url = "2.5"
 directories = "6.0"
-tauri-plugin-dialog = "2.4"
+tauri-plugin-dialog = "2.7"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.

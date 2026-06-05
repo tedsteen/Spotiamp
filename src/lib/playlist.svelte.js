@@ -110,7 +110,7 @@ class TrackRow {
          */
         function eventCallback() {
             enterExitViewportObserver.unobserve(this);
-            self.populateTrack().catch((e) => {
+            self.populateTrack().catch((/** @type {unknown} */ e) => {
                 console.warn(`Could not load metadata for ${self.uri.id}`, e);
             });
         };
