@@ -1,12 +1,16 @@
-name: "publish"
+name: "build"
 
 on:
   push:
     tags:
       - 'v*'
+  # Allow building the artifacts on demand without publishing a release.
+  workflow_dispatch:
 
 jobs:
+  # Only runs for a real tag push; skipped for manual (workflow_dispatch) runs.
   create-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -22,9 +26,12 @@ jobs:
           draft: true
           prerelease: false
           generate_release_notes: true
-  
+
   bundle:
     needs: create-release
+    # Run after create-release on a tag push, or on its own for a manual build
+    # (where create-release is skipped).
+    if: ${{ always() && needs.create-release.result != 'failure' && needs.create-release.result != 'cancelled' }}
     permissions:
       contents: write
     strategy:
@@ -33,9 +40,13 @@ jobs:
         include:
           - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
+            artifact: "macos-aarch64"
           - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
+            artifact: "macos-x86_64"
           - platform: "windows-latest"
+            args: ""
+            artifact: "windows-x86_64"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -57,10 +68,10 @@ jobs:
 
       - uses: apple-actions/import-codesign-certs@v3
         if: matrix.platform == 'macos-latest'
-        with: 
+        with:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      
+
       - name: Verify Certificate
         if: matrix.platform == 'macos-latest'
         run: |
@@ -86,11 +97,27 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         with:
-          tagName: ${{ github.ref }}
+          # Only upload to a release on a tag push; empty on manual builds so
+          # tauri-action just builds the artifacts.
+          tagName: ${{ needs.create-release.result == 'success' && github.ref || '' }}
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
-  
+
+      # Manual builds have no release to attach to, so expose the bundles as
+      # downloadable workflow artifacts instead.
+      - name: upload build artifacts
+        if: needs.create-release.result == 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotiamp-${{ matrix.artifact }}
+          path: |
+            src-tauri/target/release/bundle/**
+            src-tauri/target/*/release/bundle/**
+          if-no-files-found: error
+
+  # Only runs for a real tag push; flips the drafted release to published.
   publish-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     runs-on: ubuntu-latest
