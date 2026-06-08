@@ -12,7 +12,21 @@
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
   import { Visualizer } from "$lib/visualizer.svelte";
-  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import {
+    currentMonitor,
+    getCurrentWindow,
+    Window,
+  } from "@tauri-apps/api/window";
+  import {
+    boundingRect,
+    isDocked,
+    makeTauriWindowDraggable,
+    rectFromPositionAndSize,
+    SNAP_DISTANCE,
+    snapPosition,
+    snapRectIntoBounds,
+    STICKY_SNAP_DISTANCE,
+  } from "$lib/window-docking.svelte.js";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data: playerSettings } = $props();
@@ -198,6 +212,94 @@
       cleanupDropHandler();
     };
   });
+
+  /**
+   * @param {HTMLElement} element
+   */
+  function makeWindowDraggable(element) {
+    makeTauriWindowDraggable(element, {
+      async onStart({ startPosition, windowSize }) {
+        const playlistWindow = await Window.getByLabel("playlist");
+        const [playlistPosition, playlistSize, monitor] = await Promise.all([
+          playlistWindow?.outerPosition(),
+          playlistWindow?.outerSize(),
+          currentMonitor(),
+        ]);
+        const playlistRect =
+          playlistPosition && playlistSize
+            ? rectFromPositionAndSize(playlistPosition, playlistSize)
+            : undefined;
+        const startRect = rectFromPositionAndSize(startPosition, windowSize);
+        const dockedAtStart = playlistRect
+          ? isDocked(startRect, playlistRect)
+          : false;
+
+        return {
+          docked: dockedAtStart,
+          dockedAtStart,
+          groupStartRect:
+            dockedAtStart && playlistRect
+              ? boundingRect([startRect, playlistRect])
+              : startRect,
+          playlistRect,
+          screenBounds: monitor
+            ? rectFromPositionAndSize(
+                monitor.workArea.position,
+                monitor.workArea.size,
+              )
+            : undefined,
+          screenSnapped: false,
+        };
+      },
+      mapPosition(rawPosition, context, { startPosition, windowSize }) {
+        let position = rawPosition;
+        if (context.playlistRect && !context.dockedAtStart) {
+          const rawRect = {
+            ...rawPosition,
+            width: windowSize.width,
+            height: windowSize.height,
+          };
+          const snapDistance = context.docked
+            ? STICKY_SNAP_DISTANCE
+            : SNAP_DISTANCE;
+          const snappedPosition = snapPosition(
+            rawRect,
+            context.playlistRect,
+            snapDistance,
+          );
+          position = snappedPosition ?? rawPosition;
+          context.docked = snappedPosition !== undefined;
+        }
+
+        if (context.screenBounds) {
+          const movingGroupRect = {
+            x: context.groupStartRect.x + position.x - startPosition.x,
+            y: context.groupStartRect.y + position.y - startPosition.y,
+            width: context.groupStartRect.width,
+            height: context.groupStartRect.height,
+          };
+          const snappedGroupPosition = snapRectIntoBounds(
+            movingGroupRect,
+            context.screenBounds,
+            context.screenSnapped ? STICKY_SNAP_DISTANCE : SNAP_DISTANCE,
+          );
+
+          if (snappedGroupPosition) {
+            position = {
+              x: position.x + snappedGroupPosition.x - movingGroupRect.x,
+              y: position.y + snappedGroupPosition.y - movingGroupRect.y,
+            };
+          }
+          context.screenSnapped = snappedGroupPosition !== undefined;
+        }
+
+        return position;
+      },
+      async onEnd() {
+        await emitWindowEvent("playerWindow", { DragEnded: null });
+      },
+    });
+  }
 </script>
 
 <main>
@@ -219,7 +321,7 @@
   <div class="sprite playpause-sprite playpause-{playerState}"></div>
 
   <div
-    data-tauri-drag-region
+    use:makeWindowDraggable
     class="sprite titlebar-sprite"
     id="titlebar"
   ></div>

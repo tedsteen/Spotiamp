@@ -159,30 +159,32 @@ pub async fn seek(position_ms: u32, player: State<'_, SharedPlayer>) -> Result<(
 //      See https://github.com/tauri-apps/tauri/issues/4121 for details
 #[tauri::command]
 pub async fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) -> Result<(), ()> {
-    let playlist_window = app_handle
-        .get_webview_window("playlist")
-        .unwrap_or_else(|| {
-            let player_window = app_handle
-                .get_webview_window("player")
-                .expect("a player window");
-            let mut initial_position = player_window
-                .outer_position()
-                .expect("a position for the player window");
-            initial_position.y += player_window
-                .outer_size()
-                .expect("a player window position")
-                .height as i32;
+    let playlist_window = if let Some(playlist_window) = app_handle.get_webview_window("playlist") {
+        playlist_window
+    } else {
+        let player_window = app_handle
+            .get_webview_window("player")
+            .expect("a player window");
+        let mut initial_position = player_window
+            .outer_position()
+            .expect("a position for the player window");
+        initial_position.y += player_window
+            .outer_size()
+            .expect("a player window position")
+            .height as i32;
 
-            playlist_window::build_window(
-                &app_handle,
-                initial_position.to_logical(
-                    player_window
-                        .scale_factor()
-                        .expect("a scalefactor on the player window"),
-                ),
-            )
-            .expect("a playlist window to be created")
-        });
+        let playlist_window = playlist_window::build_window(
+            &app_handle,
+            initial_position.to_logical(
+                player_window
+                    .scale_factor()
+                    .expect("a scalefactor on the player window"),
+            ),
+        )
+        .expect("a playlist window to be created");
+        app_window::dock_windows(&player_window, &playlist_window);
+        playlist_window
+    };
     Settings::current_mut().player.show_playlist = visible;
     if visible {
         playlist_window.show().expect("Playlist window to show");

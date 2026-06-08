@@ -37,6 +37,9 @@ url = "2.5"
 directories = "6.0"
 tauri-plugin-dialog = "2.7"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3.2", features = ["NSGraphics", "NSWindow"] }
+
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.
 
