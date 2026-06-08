@@ -9,6 +9,15 @@
   import { onMount } from "svelte";
   import { Playlist } from "$lib/playlist.svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { Window } from "@tauri-apps/api/window";
+  import {
+    isDocked,
+    makeTauriWindowDraggable,
+    rectFromPositionAndSize,
+    SNAP_DISTANCE,
+    snapPosition,
+    STICKY_SNAP_DISTANCE,
+  } from "$lib/window-docking.svelte.js";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data: playlistSettings } = $props();
@@ -35,7 +44,7 @@
   function preventKeyboardScrolling(e) {
     if (
       ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(
-        e.code
+        e.code,
       ) != -1
     ) {
       e.preventDefault();
@@ -59,16 +68,16 @@
   /**
    * @param {HTMLElement} element
    */
-  function makeDraggable(element) {
+  function makeResizable(element) {
     element.onpointerdown = function (event) {
       document.onmousemove = function (event) {
         const pointerX = Math.max(
           Math.ceil(event.clientX / REACTIVE_WINDOW_SIZE.zoom / 25),
-          11
+          11,
         );
         const pointerY = Math.max(
           Math.ceil(event.clientY / REACTIVE_WINDOW_SIZE.zoom / 29),
-          4
+          4,
         );
 
         REACTIVE_WINDOW_SIZE.setSize(pointerX * 25, pointerY * 29);
@@ -88,6 +97,56 @@
     };
 
     element.onselectstart = () => false;
+  }
+
+  /**
+   * @param {HTMLElement} element
+   */
+  function makeWindowDraggable(element) {
+    makeTauriWindowDraggable(element, {
+      async onStart({ startPosition, windowSize }) {
+        const playerWindow = await Window.getByLabel("player");
+        if (!playerWindow) {
+          return false;
+        }
+        await emitWindowEvent("playlistWindow", { DragStarted: null });
+
+        const [playerPosition, playerSize] = await Promise.all([
+          playerWindow.outerPosition(),
+          playerWindow.outerSize(),
+        ]);
+        const playerRect = rectFromPositionAndSize(playerPosition, playerSize);
+        return {
+          playerRect,
+          playlistSize: windowSize,
+          docked: isDocked(
+            rectFromPositionAndSize(startPosition, windowSize),
+            playerRect,
+          ),
+        };
+      },
+      mapPosition(rawPosition, context) {
+        const rawRect = {
+          ...rawPosition,
+          width: context.playlistSize.width,
+          height: context.playlistSize.height,
+        };
+        const snapDistance = context.docked
+          ? STICKY_SNAP_DISTANCE
+          : SNAP_DISTANCE;
+        const snappedPosition = snapPosition(
+          rawRect,
+          context.playerRect,
+          snapDistance,
+        );
+        context.docked = snappedPosition !== undefined;
+
+        return snappedPosition ?? rawPosition;
+      },
+      async onEnd() {
+        await emitWindowEvent("playlistWindow", { DragEnded: null });
+      },
+    });
   }
   let scroll = $state(0);
   /**
@@ -179,9 +238,9 @@
   <!-- Top/Bottom -->
   {#each range(1, playlist.width - 2) as x}
     <div
-      data-tauri-drag-region
       class="sprite playlist-sprite playlist-t-sprite"
       style:--x={x}
+      use:makeWindowDraggable
     ></div>
     {#if x >= 5 && x < playlist.width - 6}
       <div
@@ -194,9 +253,9 @@
 
   <!-- Title -->
   <div
-    data-tauri-drag-region
     class="sprite playlist-sprite playlist-title-sprite"
     style:--x={playlist.width / 2 - 2}
+    use:makeWindowDraggable
   ></div>
 
   <!-- Bottom corners -->
@@ -211,7 +270,7 @@
     style:--x={playlist.width - 9}
   ></div>
 
-  <div class="draggable-corner" use:makeDraggable></div>
+  <div class="draggable-corner" use:makeResizable></div>
 </span>
 
 <style>

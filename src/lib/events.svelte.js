@@ -6,7 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
  */
 
 /**
- * @typedef { {playlistWindow: {event: {Ready: null, PlayRequested: null, TrackLoaded: SpotifyTrack, EndReached: null}}, playerWindow: {event: {CloseRequested: null, UrlsDropped: string[], NextPressed: null, PreviousPressed: null }}, player: { event: { 'Paused': { uri: string, position_ms: number}, 'Playing': { uri: string, position_ms: number}, 'Stopped': {uri: string}, 'EndOfTrack': {uri: string}, 'PositionCorrection': { uri: string, position_ms: number}, 'Seeked': { uri: string, position_ms: number}} }} } WindowEventTypes
+ * @typedef { {playlistWindow: {event: {Ready: null, PlayRequested: null, TrackLoaded: SpotifyTrack, EndReached: null, DragStarted: null, DragEnded: null}}, playerWindow: {event: {CloseRequested: null, UrlsDropped: string[], NextPressed: null, PreviousPressed: null, DragEnded: null }}, player: { event: { 'Paused': { uri: string, position_ms: number}, 'Playing': { uri: string, position_ms: number}, 'Stopped': {uri: string}, 'EndOfTrack': {uri: string}, 'PositionCorrection': { uri: string, position_ms: number}, 'Seeked': { uri: string, position_ms: number}} }} } WindowEventTypes
  */
 
 /**
