@@ -11,8 +11,8 @@ pub fn get_playlist_settings() -> PlaylistSettings {
 }
 
 #[tauri::command]
-pub fn add_uri(uri: &str) {
-    Settings::current_mut().playlist.uris.push(uri.to_string());
+pub fn set_uris(uris: Vec<String>) {
+    Settings::current_mut().playlist.uris = uris;
 }
 
 #[tauri::command]
