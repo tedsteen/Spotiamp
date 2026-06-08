@@ -137,7 +137,7 @@ pub fn run() {
             player_window::seek,
             player_window::set_playlist_window_visible,
             playlist_window::get_playlist_settings,
-            playlist_window::add_uri,
+            playlist_window::set_uris,
             playlist_window::set_playlist_inner_size,
         ])
         .setup(|app| {

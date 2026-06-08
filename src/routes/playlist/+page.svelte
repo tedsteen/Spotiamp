@@ -173,6 +173,186 @@
       scrollElement.scrollTop = (parseInt(event.target.value) / 100) * max;
     }
   }
+
+  // ------ Drag to reorder ------
+  // Winamp-style: the selection shifts by however many rows the pointer has
+  // travelled from where the drag started, regardless of which row it's over.
+  const EDGE_SCROLL_ZONE = 12;
+  const EDGE_SCROLL_SPEED = 6;
+
+  /**
+   * @typedef {import('$lib/playlist.svelte').TrackRow} Row
+   */
+
+  /**
+   * @type {{
+   *   row: Row,
+   *   startY: number,
+   *   rowHeight: number,
+   *   block: Row[],
+   *   remaining: Row[],
+   *   baseInsert: number,
+   *   originalRows: Row[],
+   *   appliedOffset: number,
+   *   moved: boolean,
+   *   pointerY: number,
+   * } | undefined}
+   */
+  let drag;
+  let isDragging = $state(false);
+  /** @type {number | undefined} */
+  let edgeScrollFrame;
+
+  /**
+   * Shift the dragged selection by `offset` rows relative to its start.
+   *
+   * @param {number} offset
+   */
+  function applyDragOffset(offset) {
+    if (!drag || offset === drag.appliedOffset) {
+      return;
+    }
+    drag.appliedOffset = offset;
+
+    if (offset === 0) {
+      // Back at the start: restore the original order verbatim (this also
+      // preserves any gaps in a non-contiguous selection).
+      playlist.rows = [...drag.originalRows];
+    } else {
+      drag.moved = true;
+      isDragging = true;
+      playlist.placeSelection(
+        drag.block,
+        drag.remaining,
+        drag.baseInsert + offset,
+      );
+    }
+  }
+
+  /**
+   * Recompute the offset from the current pointer position and apply it.
+   */
+  function updateDragFromPointer() {
+    if (!drag) {
+      return;
+    }
+    const offset = Math.round((drag.pointerY - drag.startY) / drag.rowHeight);
+    applyDragOffset(offset);
+  }
+
+  /**
+   * Continuously scroll while the pointer rests near the top/bottom edge,
+   * keeping the offset consistent by shifting the drag origin as we scroll.
+   */
+  function edgeScrollTick() {
+    edgeScrollFrame = undefined;
+    if (!drag || !scrollElement) {
+      return;
+    }
+
+    const rect = scrollElement.getBoundingClientRect();
+    let delta = 0;
+    if (drag.pointerY < rect.top + EDGE_SCROLL_ZONE) {
+      delta = -EDGE_SCROLL_SPEED;
+    } else if (drag.pointerY > rect.bottom - EDGE_SCROLL_ZONE) {
+      delta = EDGE_SCROLL_SPEED;
+    }
+
+    if (delta !== 0) {
+      const before = scrollElement.scrollTop;
+      scrollElement.scrollTop += delta;
+      // Move the drag origin by however much we actually scrolled so the
+      // pointer-to-row mapping keeps growing while held at the edge.
+      drag.startY -= scrollElement.scrollTop - before;
+      updateDragFromPointer();
+      edgeScrollFrame = requestAnimationFrame(edgeScrollTick);
+    }
+  }
+
+  /**
+   * @param {MouseEvent} e
+   * @param {Row} row
+   */
+  function onRowMouseDown(e, row) {
+    if (e.button !== 0) {
+      return;
+    }
+
+    const ctrl = e.ctrlKey || e.metaKey;
+    const shift = e.shiftKey;
+    if (ctrl || shift) {
+      playlist.select(row, { ctrl, shift });
+      return;
+    }
+
+    // Keep an existing multi-selection intact so it can be dragged as a group;
+    // a plain click that doesn't turn into a drag collapses to this row on release.
+    if (!playlist.selectedRows.includes(row)) {
+      playlist.select(row);
+    }
+
+    const selected = new Set(playlist.selectedRows);
+    const block = playlist.rows.filter((r) => selected.has(r));
+    const remaining = playlist.rows.filter((r) => !selected.has(r));
+    const topIndex = Math.min(...block.map((r) => playlist.rows.indexOf(r)));
+    // Where the block sits among the non-dragged rows at the start.
+    const baseInsert = remaining.filter(
+      (r) => playlist.rows.indexOf(r) < topIndex,
+    ).length;
+    const dragElement =
+      row.element ??
+      (e.currentTarget instanceof HTMLElement ? e.currentTarget : undefined);
+    const rowHeight = dragElement?.getBoundingClientRect().height || 1;
+
+    drag = {
+      row,
+      startY: e.clientY,
+      rowHeight,
+      block,
+      remaining,
+      baseInsert,
+      originalRows: [...playlist.rows],
+      appliedOffset: 0,
+      moved: false,
+      pointerY: e.clientY,
+    };
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", onDragEnd);
+  }
+
+  /**
+   * @param {MouseEvent} e
+   */
+  function onDragMove(e) {
+    if (!drag) {
+      return;
+    }
+    drag.pointerY = e.clientY;
+    updateDragFromPointer();
+
+    if (edgeScrollFrame === undefined) {
+      edgeScrollFrame = requestAnimationFrame(edgeScrollTick);
+    }
+  }
+
+  function onDragEnd() {
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", onDragEnd);
+    if (edgeScrollFrame !== undefined) {
+      cancelAnimationFrame(edgeScrollFrame);
+      edgeScrollFrame = undefined;
+    }
+
+    if (drag && !drag.moved) {
+      // A plain click (no drag): collapse the selection to the clicked row.
+      playlist.select(drag.row);
+    } else if (drag) {
+      // The order changed — persist the new arrangement.
+      playlist.persist();
+    }
+    drag = undefined;
+    isDragging = false;
+  }
 </script>
 
 <span style:--playlist-w={playlist.width} style:--playlist-h={playlist.height}>
@@ -186,7 +366,7 @@
     onscroll={parseScroll}
     bind:this={scrollElement}
   >
-    <table id="playlist-tracks">
+    <table id="playlist-tracks" class:dragging={isDragging}>
       <tbody>
         {#each playlist.rows as row, index}
           <tr
@@ -194,13 +374,13 @@
             class:loaded={row.isLoaded()}
             class:selected={row.isSelected()}
             class:unavailable={row.unavailable}
-            onmousedown={() => (playlist.selectedRows = [row])}
+            onmousedown={(e) => onRowMouseDown(e, row)}
             ondblclick={() => row.play()}
             use:enterExitViewport
             bind:this={row.element}
             onenterViewport={row.getOnEnterViewport()}
           >
-            <td>
+            <td class="playlist-track-main">
               <span class="playlist-track-number">{index + 1}.&nbsp;</span>
               <span class="playlist-track-name">{row.displayName}</span>
             </td>
@@ -375,6 +555,20 @@
     height: calc(var(--track-row-height) * var(--zoom));
   }
 
+  #playlist-tracks.dragging .playlist-track {
+    cursor: url(/src/static/assets/skins/base-2.91/TITLEBAR.CUR), grabbing;
+  }
+
+  .playlist-track-main {
+    /* The max-width:0 + width:100% combo lets the cell take the remaining
+       space while still honouring text-overflow within a table layout. */
+    max-width: 0;
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
   .playlist-track-number {
     padding-left: calc(3px * var(--zoom));
   }
@@ -382,6 +576,7 @@
   .playlist-track-duration {
     padding-right: calc(5px * var(--zoom));
     text-align: right;
+    white-space: nowrap;
   }
 
   .playlist-track.selected {
