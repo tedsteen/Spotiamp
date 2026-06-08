@@ -1,6 +1,6 @@
 use librespot::{core::SpotifyUri, metadata::Track};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 use crate::{
     app_window, playlist_window,
@@ -188,8 +188,20 @@ pub async fn set_playlist_window_visible(visible: bool, app_handle: AppHandle) -
     Settings::current_mut().player.show_playlist = visible;
     if visible {
         playlist_window.show().expect("Playlist window to show");
+        app_handle
+            .emit(
+                "playlistWindow",
+                serde_json::json!({ "VisibilityChanged": { "visible": true } }),
+            )
+            .expect("Playlist window visibility event to emit");
     } else {
         playlist_window.hide().expect("Playlist window to hide");
+        app_handle
+            .emit(
+                "playlistWindow",
+                serde_json::json!({ "VisibilityChanged": { "visible": false } }),
+            )
+            .expect("Playlist window visibility event to emit");
     }
     Ok(())
 }
