@@ -83,6 +83,10 @@ struct DockingState {
     suppressed_positions: HashMap<String, PhysicalPosition<i32>>,
     attachment: Option<Attachment>,
     native_child_attached: bool,
+    /// Whether the follower is currently shown. While hidden it keeps a stale
+    /// position, so the docking logic must neither move it nor re-evaluate the
+    /// dock against it; it is repositioned to the docked spot when shown again.
+    follower_visible: bool,
 }
 
 impl DockingState {
@@ -101,7 +105,13 @@ impl DockingState {
             suppressed_positions: Default::default(),
             attachment: None,
             native_child_attached: false,
+            follower_visible: true,
         }
+    }
+
+    fn refresh_both(&mut self, anchor: &WebviewWindow, follower: &WebviewWindow) {
+        self.refresh_window(anchor);
+        self.refresh_window(follower);
     }
 
     fn refresh_window(&mut self, window: &WebviewWindow) -> Option<WindowRect> {
@@ -334,6 +344,11 @@ fn follower_target(
 
     let state = context.state.lock().ok()?;
     let attachment = state.attachment?;
+    // Leave a hidden follower alone; it is repositioned to the docked spot when
+    // shown again (see `handle_follower_visibility_changed`), matching macOS.
+    if !state.follower_visible {
+        return None;
+    }
     let follower_size = state.sizes.get(&context.follower_label).copied()?;
 
     // The new anchor position is always in the move message; its size is only
@@ -490,6 +505,13 @@ fn commit_attachment_for_window(
     follower_window: &WebviewWindow,
     moved_window: &WebviewWindow,
 ) {
+    // A hidden follower keeps a stale position, so re-evaluating the dock against
+    // it (e.g. on the anchor's drag-end) would wrongly clear the attachment. Keep
+    // it; it is repositioned when the follower is shown again.
+    if !state.follower_visible {
+        return;
+    }
+
     let Some(anchor) = state.rect(anchor_window.label()) else {
         return;
     };
@@ -568,29 +590,19 @@ fn handle_window_moved(
         return;
     }
 
-    state.refresh_window(anchor_window);
-    state.refresh_window(follower_window);
+    state.refresh_both(anchor_window, follower_window);
     state.positions.insert(label.to_string(), position);
 
     let Some(anchor) = state.rect(anchor_window.label()) else {
         return;
     };
     if anchor_moved {
-        if let Some(attachment) = state.attachment {
-            if follower_window.is_visible().unwrap_or(true) {
-                // The OS keeps visible followers glued while the anchor moves
-                // (macOS child window / Windows window-procedure subclass).
-                return;
-            }
-
-            let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
-                return;
-            };
-            move_window(
-                state,
-                follower_window,
-                attachment.follower_position(anchor, follower_size),
-            );
+        // The OS keeps the visible follower glued while the anchor moves (macOS
+        // child window / Windows window-procedure subclass). A hidden follower is
+        // left alone and snapped back to the docked spot when it is shown again
+        // (see `handle_follower_visibility_changed`) — moving it here would make a
+        // hidden window reappear.
+        if state.attachment.is_some() {
             return;
         }
     } else {
@@ -601,11 +613,45 @@ fn handle_window_moved(
             if position == attachment.follower_position(anchor, follower_size) {
                 return;
             }
+            // The follower is docked but reported a different position. This is a
+            // programmatic/OS move (e.g. being shown again after the anchor moved
+            // away), not the user dragging it loose — undocking is handled by
+            // DragStarted/DragEnded. Keep the attachment so it can be repositioned
+            // to the docked spot (see `handle_follower_visibility_changed`).
+            return;
         }
 
-        set_attachment(state, anchor_window, follower_window, None);
         snap_window_without_attachment(state, follower_window, anchor_window);
     }
+}
+
+/// Move the follower back to its docked position relative to the current anchor.
+/// Does nothing when undocked or while the follower is hidden — a hidden follower
+/// keeps its stale position and is repositioned by `handle_follower_visibility_changed`
+/// when shown again (moving it here would reveal it).
+fn reposition_follower_to_dock(
+    state: &mut DockingState,
+    anchor_window: &WebviewWindow,
+    follower_window: &WebviewWindow,
+) {
+    let Some(attachment) = state.attachment else {
+        return;
+    };
+    if !state.follower_visible {
+        return;
+    }
+    let Some(anchor) = state.rect(anchor_window.label()) else {
+        return;
+    };
+    let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
+        return;
+    };
+
+    move_window(
+        state,
+        follower_window,
+        attachment.follower_position(anchor, follower_size),
+    );
 }
 
 fn handle_window_resized(
@@ -617,30 +663,13 @@ fn handle_window_resized(
     state: &mut DockingState,
 ) {
     state.sizes.insert(resized_window.label().to_string(), size);
-    state.refresh_window(anchor_window);
-    state.refresh_window(follower_window);
+    state.refresh_both(anchor_window, follower_window);
 
-    if !anchor_resized {
+    if anchor_resized {
+        reposition_follower_to_dock(state, anchor_window, follower_window);
+    } else {
         commit_attachment_for_window(state, anchor_window, follower_window, follower_window);
-        return;
     }
-
-    let Some(attachment) = state.attachment else {
-        return;
-    };
-
-    let Some(anchor) = state.rect(anchor_window.label()) else {
-        return;
-    };
-    let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
-        return;
-    };
-
-    move_window(
-        state,
-        follower_window,
-        attachment.follower_position(anchor, follower_size),
-    );
 }
 
 fn verify_attachment_after_resize(
@@ -651,16 +680,27 @@ fn verify_attachment_after_resize(
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(RESIZE_ATTACHMENT_VERIFY_DELAY).await;
 
-        let mut state = state.lock().expect("docking state lock");
-        if state.attachment.is_none() {
-            return;
-        }
+        // Hop to the main thread before touching window state: the locked getters
+        // below block when called off-thread and would deadlock against the
+        // main-thread window-event handlers that hold the same lock.
+        let _ = anchor_window.clone().run_on_main_thread(move || {
+            let mut state = state.lock().expect("docking state lock");
+            if state.attachment.is_none() {
+                return;
+            }
 
-        state.refresh_window(&anchor_window);
-        state.refresh_window(&follower_window);
+            // A hidden follower has a stale position; don't re-evaluate the dock
+            // against it or it would be wrongly cleared.
+            if !state.follower_visible {
+                return;
+            }
 
-        let attachment = current_attachment(&state, anchor_window.label(), follower_window.label());
-        set_attachment(&mut state, &anchor_window, &follower_window, attachment);
+            state.refresh_both(&anchor_window, &follower_window);
+
+            let attachment =
+                current_attachment(&state, anchor_window.label(), follower_window.label());
+            set_attachment(&mut state, &anchor_window, &follower_window, attachment);
+        });
     });
 }
 
@@ -670,30 +710,18 @@ fn handle_follower_visibility_changed(
     follower_window: &WebviewWindow,
     visible: bool,
 ) {
+    state.follower_visible = visible;
     if !visible {
         set_native_child_attached(state, anchor_window, follower_window, false);
         return;
     }
 
-    let Some(attachment) = state.attachment else {
+    if state.attachment.is_none() {
         return;
-    };
+    }
 
-    state.refresh_window(anchor_window);
-    state.refresh_window(follower_window);
-
-    let Some(anchor) = state.rect(anchor_window.label()) else {
-        return;
-    };
-    let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
-        return;
-    };
-
-    move_window(
-        state,
-        follower_window,
-        attachment.follower_position(anchor, follower_size),
-    );
+    state.refresh_both(anchor_window, follower_window);
+    reposition_follower_to_dock(state, anchor_window, follower_window);
     set_native_child_attached(state, anchor_window, follower_window, true);
 }
 
@@ -705,8 +733,7 @@ pub fn dock_windows(anchor_window: &WebviewWindow, follower_window: &WebviewWind
 
     {
         let mut state = state.lock().expect("docking state lock");
-        state.refresh_window(anchor_window);
-        state.refresh_window(follower_window);
+        state.refresh_both(anchor_window, follower_window);
         commit_attachment_for_window(&mut state, anchor_window, follower_window, follower_window);
     }
 
@@ -768,35 +795,44 @@ pub fn dock_windows(anchor_window: &WebviewWindow, follower_window: &WebviewWind
                 return;
             };
 
-            let mut state = state.lock().expect("docking state lock");
-            state.refresh_window(&anchor_window);
-            state.refresh_window(&follower_window);
+            // Event listeners run on a worker thread, where window getters/setters
+            // block until the main thread services them. Handle docking on the main
+            // thread so those calls run inline and never deadlock against the
+            // window-event handlers that hold the same lock.
+            let state = state.clone();
+            let anchor_window = anchor_window.clone();
+            let follower_window = follower_window.clone();
+            let moved_window = moved_window.clone();
+            let _ = anchor_window.clone().run_on_main_thread(move || {
+                let mut state = state.lock().expect("docking state lock");
+                state.refresh_both(&anchor_window, &follower_window);
 
-            match event {
-                DockingWindowEvent::DragStarted => {
-                    if moved_window.label() == follower_window.label() {
-                        set_attachment(&mut state, &anchor_window, &follower_window, None);
+                match event {
+                    DockingWindowEvent::DragStarted => {
+                        if moved_window.label() == follower_window.label() {
+                            set_attachment(&mut state, &anchor_window, &follower_window, None);
+                        }
                     }
-                }
-                DockingWindowEvent::DragEnded => {
-                    commit_attachment_for_window(
-                        &mut state,
-                        &anchor_window,
-                        &follower_window,
-                        &moved_window,
-                    );
-                }
-                DockingWindowEvent::VisibilityChanged { visible } => {
-                    if moved_window.label() == follower_window.label() {
-                        handle_follower_visibility_changed(
+                    DockingWindowEvent::DragEnded => {
+                        commit_attachment_for_window(
                             &mut state,
                             &anchor_window,
                             &follower_window,
-                            visible,
+                            &moved_window,
                         );
                     }
+                    DockingWindowEvent::VisibilityChanged { visible } => {
+                        if moved_window.label() == follower_window.label() {
+                            handle_follower_visibility_changed(
+                                &mut state,
+                                &anchor_window,
+                                &follower_window,
+                                visible,
+                            );
+                        }
+                    }
                 }
-            }
+            });
         });
     }
 }
