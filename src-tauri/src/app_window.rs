@@ -276,22 +276,175 @@ fn set_native_child_window(
     });
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
 fn set_native_child_window(
+    anchor_window: &WebviewWindow,
+    follower_window: &WebviewWindow,
+    attached: bool,
+) {
+    use windows::Win32::UI::WindowsAndMessaging::{GWLP_HWNDPARENT, SetWindowLongPtrW};
+
+    let Ok(anchor_hwnd) = anchor_window.hwnd() else {
+        return;
+    };
+    // HWND isn't `Send`, so capture the owner as a plain integer for the
+    // main-thread closure; clearing the owner uses 0.
+    let owner = if attached { anchor_hwnd.0 as isize } else { 0 };
+
+    let follower_window = follower_window.clone();
+    let _ = follower_window.clone().run_on_main_thread(move || {
+        let Ok(follower_hwnd) = follower_window.hwnd() else {
+            return;
+        };
+
+        // Setting the playlist's owner groups it with the player the way
+        // `addChildWindow` does on macOS: it stays above the player, minimizes
+        // and restores with it, and drops out of the taskbar. Owned windows do
+        // not move with their owner, so positioning stays the job of the
+        // window-procedure subclass (see `install_native_docking`).
+        unsafe {
+            SetWindowLongPtrW(follower_hwnd, GWLP_HWNDPARENT, owner);
+        }
+    });
+}
+
+// On Windows an owned window does not move with its owner, so we subclass the
+// anchor's window procedure and reposition the follower inside the move message.
+// This happens synchronously, before the frame is painted, giving lockstep
+// movement with no trailing — the equivalent of macOS child windows.
+#[cfg(target_os = "windows")]
+const DOCK_SUBCLASS_ID: usize = 1;
+
+#[cfg(target_os = "windows")]
+struct NativeDockContext {
+    state: Arc<Mutex<DockingState>>,
+    anchor_label: String,
+    follower_label: String,
+    follower_hwnd: isize,
+}
+
+#[cfg(target_os = "windows")]
+fn follower_target(
+    context: &NativeDockContext,
+    window_pos: &windows::Win32::UI::WindowsAndMessaging::WINDOWPOS,
+) -> Option<(windows::Win32::Foundation::HWND, PhysicalPosition<i32>)> {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE;
+
+    let state = context.state.lock().ok()?;
+    let attachment = state.attachment?;
+    let follower_size = state.sizes.get(&context.follower_label).copied()?;
+
+    // The new anchor position is always in the move message; its size is only
+    // valid there when SWP_NOSIZE is absent, so fall back to the tracked size
+    // for plain moves (the common drag case).
+    let size_changing = window_pos.flags.0 & SWP_NOSIZE.0 == 0;
+    let (width, height) = if size_changing {
+        (window_pos.cx as u32, window_pos.cy as u32)
+    } else {
+        let tracked = state.sizes.get(&context.anchor_label).copied()?;
+        (tracked.width, tracked.height)
+    };
+
+    let anchor = WindowRect {
+        x: window_pos.x,
+        y: window_pos.y,
+        width,
+        height,
+    };
+    let position = attachment.follower_position(anchor, follower_size);
+    Some((HWND(context.follower_hwnd as *mut core::ffi::c_void), position))
+}
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn anchor_subclass_proc(
+    hwnd: windows::Win32::Foundation::HWND,
+    msg: u32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+    _id: usize,
+    refdata: usize,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::UI::Shell::DefSubclassProc;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        HWND_TOP, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, SetWindowPos, WINDOWPOS,
+        WM_WINDOWPOSCHANGED,
+    };
+
+    if msg == WM_WINDOWPOSCHANGED && refdata != 0 {
+        let context = unsafe { &*(refdata as *const NativeDockContext) };
+        let window_pos = unsafe { &*(lparam.0 as *const WINDOWPOS) };
+
+        // Compute (and release the lock) before touching the OS so the
+        // follower's resulting move message cannot deadlock against us.
+        if let Some((follower_hwnd, position)) = follower_target(context, window_pos) {
+            unsafe {
+                let _ = SetWindowPos(
+                    follower_hwnd,
+                    Some(HWND_TOP),
+                    position.x,
+                    position.y,
+                    0,
+                    0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                );
+            }
+        }
+    }
+
+    unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
+}
+
+#[cfg(target_os = "windows")]
+fn install_native_docking(
+    state: &Arc<Mutex<DockingState>>,
+    anchor_window: &WebviewWindow,
+    follower_window: &WebviewWindow,
+) {
+    use windows::Win32::UI::Shell::SetWindowSubclass;
+
+    let state = state.clone();
+    let anchor_label = anchor_window.label().to_string();
+    let follower_label = follower_window.label().to_string();
+    let anchor_window = anchor_window.clone();
+    let follower_window = follower_window.clone();
+
+    let _ = anchor_window.clone().run_on_main_thread(move || {
+        let (Ok(anchor_hwnd), Ok(follower_hwnd)) =
+            (anchor_window.hwnd(), follower_window.hwnd())
+        else {
+            return;
+        };
+
+        let context = Box::new(NativeDockContext {
+            state,
+            anchor_label,
+            follower_label,
+            follower_hwnd: follower_hwnd.0 as isize,
+        });
+        // The subclass lives for the lifetime of the window, so the context is
+        // leaked on purpose; it is reclaimed when the window is destroyed at
+        // shutdown.
+        let refdata = Box::into_raw(context) as usize;
+        unsafe {
+            let _ = SetWindowSubclass(
+                anchor_hwnd,
+                Some(anchor_subclass_proc),
+                DOCK_SUBCLASS_ID,
+                refdata,
+            );
+        }
+    });
+}
+
+// macOS keeps the follower glued through `addChildWindow`, so there is no window
+// procedure to subclass.
+#[cfg(target_os = "macos")]
+fn install_native_docking(
+    _state: &Arc<Mutex<DockingState>>,
     _anchor_window: &WebviewWindow,
     _follower_window: &WebviewWindow,
-    _attached: bool,
 ) {
-}
-
-#[cfg(target_os = "macos")]
-fn native_docking_moves_follower() -> bool {
-    true
-}
-
-#[cfg(not(target_os = "macos"))]
-fn native_docking_moves_follower() -> bool {
-    false
 }
 
 fn set_attachment(
@@ -411,19 +564,9 @@ fn handle_window_moved(
         return;
     };
     if anchor_moved {
-        if let Some(attachment) = state.attachment {
-            if native_docking_moves_follower() {
-                return;
-            }
-
-            let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
-                return;
-            };
-            move_window(
-                state,
-                follower_window,
-                attachment.follower_position(anchor, follower_size),
-            );
+        // The OS keeps the follower glued while the anchor moves (macOS child
+        // window / Windows window-procedure subclass), so there is nothing to do.
+        if state.attachment.is_some() {
             return;
         }
     } else {
@@ -509,6 +652,8 @@ pub fn dock_windows(anchor_window: &WebviewWindow, follower_window: &WebviewWind
         state.refresh_window(follower_window);
         commit_attachment_for_window(&mut state, anchor_window, follower_window, follower_window);
     }
+
+    install_native_docking(&state, anchor_window, follower_window);
 
     for (window, anchor_moved) in [
         (anchor_window.clone(), true),

@@ -4712,6 +4712,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "url",
+ "windows 0.61.3",
 ]
 
 [[package]]
