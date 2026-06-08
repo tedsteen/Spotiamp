@@ -172,6 +172,7 @@ impl Attachment {
 enum DockingWindowEvent {
     DragStarted,
     DragEnded,
+    VisibilityChanged { visible: bool },
 }
 
 fn ranges_overlap(a_start: i32, a_end: i32, b_start: i32, b_end: i32) -> bool {
@@ -353,7 +354,10 @@ fn follower_target(
         height,
     };
     let position = attachment.follower_position(anchor, follower_size);
-    Some((HWND(context.follower_hwnd as *mut core::ffi::c_void), position))
+    Some((
+        HWND(context.follower_hwnd as *mut core::ffi::c_void),
+        position,
+    ))
 }
 
 #[cfg(target_os = "windows")]
@@ -410,8 +414,7 @@ fn install_native_docking(
     let follower_window = follower_window.clone();
 
     let _ = anchor_window.clone().run_on_main_thread(move || {
-        let (Ok(anchor_hwnd), Ok(follower_hwnd)) =
-            (anchor_window.hwnd(), follower_window.hwnd())
+        let (Ok(anchor_hwnd), Ok(follower_hwnd)) = (anchor_window.hwnd(), follower_window.hwnd())
         else {
             return;
         };
@@ -455,6 +458,15 @@ fn set_attachment(
 ) {
     state.attachment = attachment;
     let attached = attachment.is_some();
+    set_native_child_attached(state, anchor_window, follower_window, attached);
+}
+
+fn set_native_child_attached(
+    state: &mut DockingState,
+    anchor_window: &WebviewWindow,
+    follower_window: &WebviewWindow,
+    attached: bool,
+) {
     if state.native_child_attached != attached {
         set_native_child_window(anchor_window, follower_window, attached);
         state.native_child_attached = attached;
@@ -564,9 +576,21 @@ fn handle_window_moved(
         return;
     };
     if anchor_moved {
-        // The OS keeps the follower glued while the anchor moves (macOS child
-        // window / Windows window-procedure subclass), so there is nothing to do.
-        if state.attachment.is_some() {
+        if let Some(attachment) = state.attachment {
+            if follower_window.is_visible().unwrap_or(true) {
+                // The OS keeps visible followers glued while the anchor moves
+                // (macOS child window / Windows window-procedure subclass).
+                return;
+            }
+
+            let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
+                return;
+            };
+            move_window(
+                state,
+                follower_window,
+                attachment.follower_position(anchor, follower_size),
+            );
             return;
         }
     } else {
@@ -638,6 +662,39 @@ fn verify_attachment_after_resize(
         let attachment = current_attachment(&state, anchor_window.label(), follower_window.label());
         set_attachment(&mut state, &anchor_window, &follower_window, attachment);
     });
+}
+
+fn handle_follower_visibility_changed(
+    state: &mut DockingState,
+    anchor_window: &WebviewWindow,
+    follower_window: &WebviewWindow,
+    visible: bool,
+) {
+    if !visible {
+        set_native_child_attached(state, anchor_window, follower_window, false);
+        return;
+    }
+
+    let Some(attachment) = state.attachment else {
+        return;
+    };
+
+    state.refresh_window(anchor_window);
+    state.refresh_window(follower_window);
+
+    let Some(anchor) = state.rect(anchor_window.label()) else {
+        return;
+    };
+    let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
+        return;
+    };
+
+    move_window(
+        state,
+        follower_window,
+        attachment.follower_position(anchor, follower_size),
+    );
+    set_native_child_attached(state, anchor_window, follower_window, true);
 }
 
 pub fn dock_windows(anchor_window: &WebviewWindow, follower_window: &WebviewWindow) {
@@ -728,6 +785,16 @@ pub fn dock_windows(anchor_window: &WebviewWindow, follower_window: &WebviewWind
                         &follower_window,
                         &moved_window,
                     );
+                }
+                DockingWindowEvent::VisibilityChanged { visible } => {
+                    if moved_window.label() == follower_window.label() {
+                        handle_follower_visibility_changed(
+                            &mut state,
+                            &anchor_window,
+                            &follower_window,
+                            visible,
+                        );
+                    }
                 }
             }
         });
