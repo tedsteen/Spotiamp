@@ -6,8 +6,15 @@
     handleDrop,
     REACTIVE_WINDOW_SIZE,
   } from "$lib/common.svelte.js";
-  import { emitWindowEvent, subscribeToWindowEvent } from "$lib/events.svelte.js";
-  import { durationToMMSS, durationToString, SpotifyTrack } from "$lib/spotify.svelte.js";
+  import {
+    emitWindowEvent,
+    subscribeToWindowEvent,
+  } from "$lib/events.svelte.js";
+  import {
+    durationToMMSS,
+    durationToString,
+    SpotifyTrack,
+  } from "$lib/spotify.svelte.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
@@ -50,6 +57,21 @@
   let volume = $state(initialVolume());
   let sliderSeekPosition = $state(0);
   let seekPosition = $state(0);
+  // Wall-clock anchor for interpolating the playback position between backend
+  // updates. Advancing seekPosition by elapsed real time (rather than a fixed
+  // +1s per tick) keeps the clock from drifting when timers fire irregularly.
+  let positionAnchorMs = 0;
+  let positionAnchorAt = 0;
+
+  /**
+   * Set the playback position and re-anchor the interpolation clock to now.
+   * @param {number} positionMs
+   */
+  function setPosition(positionMs) {
+    seekPosition = positionMs;
+    positionAnchorMs = positionMs;
+    positionAnchorAt = performance.now();
+  }
   let showPlaylist = $state(initialShowPlaylist());
   let doubleSizeActive = $state(initialDoubleSizeActive());
   /**
@@ -88,14 +110,15 @@
     if (playerState == "paused") {
       await invoke("play").catch(handleError);
     } else if (loadedTrack) {
-      seekPosition = sliderSeekPosition = 0;
+      setPosition(0);
+      sliderSeekPosition = 0;
       playerState = loadedTrack.unavailable ? "unavailable" : "playing";
 
       if (playerState == "unavailable") {
         await invoke("stop").catch(handleError);
       } else {
         await invoke("load_track", { uri: loadedTrack?.uri.asString }).catch(
-          handleError
+          handleError,
         );
       }
     }
@@ -109,7 +132,8 @@
   }
 
   async function stop() {
-    seekPosition = sliderSeekPosition = 0;
+    setPosition(0);
+    sliderSeekPosition = 0;
     playerState = "stopped"; // To make the UI a bit snappier
     await invoke("stop").catch(handleError);
   }
@@ -118,7 +142,9 @@
    * @param {number} positionMs
    */
   async function seek(positionMs) {
-    seekPosition = sliderSeekPosition = positionMs; // To make the UI a bit snappier and to not glitch between new and old value
+    // To make the UI a bit snappier and to not glitch between new and old value
+    setPosition(positionMs);
+    sliderSeekPosition = positionMs;
     await invoke("seek", {
       positionMs,
     }).catch(handleError);
@@ -160,7 +186,8 @@
       if (playerState == "paused") {
         numberDisplayHidden = !numberDisplayHidden;
       } else if (playerState != "unavailable") {
-        seekPosition += 1000;
+        seekPosition =
+          positionAnchorMs + (performance.now() - positionAnchorAt);
       }
     }, 1000);
 
@@ -175,7 +202,7 @@
         } else if (event.EndReached !== undefined) {
           stop();
         }
-      }
+      },
     );
 
     const playerEventsSubscription = subscribeToWindowEvent(
@@ -184,21 +211,24 @@
         if (event.Playing) {
           const { position_ms } = event.Playing;
           playerState = "playing";
-          seekPosition = position_ms;
+          setPosition(position_ms);
         } else if (event.Paused) {
           const { position_ms } = event.Paused;
           playerState = "paused";
-          seekPosition = position_ms;
+          setPosition(position_ms);
         } else if (event.Stopped) {
           playerState = "stopped";
         } else if (event.PositionCorrection) {
           const { position_ms } = event.PositionCorrection;
-          seekPosition = position_ms;
+          setPosition(position_ms);
+        } else if (event.PositionChanged) {
+          const { position_ms } = event.PositionChanged;
+          setPosition(position_ms);
         } else if (event.Seeked) {
           const { position_ms } = event.Seeked;
-          seekPosition = position_ms;
+          setPosition(position_ms);
         }
-      }
+      },
     );
 
     const cleanupDropHandler = handleDrop((urls) => {
