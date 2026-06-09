@@ -129,7 +129,10 @@ impl SpotifyPlayer {
     #[allow(clippy::new_without_default)]
     pub fn new(session: SpotifySession) -> Self {
         let player_config = PlayerConfig {
-            position_update_interval: None,
+            // Emit a position update every second so the UI can re-sync its
+            // playback clock instead of free-running and drifting from the
+            // actual position (which left the seek bar short at end of track).
+            position_update_interval: Some(Duration::from_secs(1)),
             bitrate: Bitrate::Bitrate320,
             gapless: true,
             normalisation: false,

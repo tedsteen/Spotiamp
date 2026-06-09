@@ -35,6 +35,7 @@ enum SpotiampPlayerEvent {
     Paused { uri: String, position_ms: u32 },
     EndOfTrack { uri: String },
     PositionCorrection { uri: String, position_ms: u32 },
+    PositionChanged { uri: String, position_ms: u32 },
     Seeked { uri: String, position_ms: u32 },
     Playing { uri: String, position_ms: u32 },
 }
@@ -69,6 +70,14 @@ impl SpotiampPlayerEvent {
                 position_ms,
                 ..
             } => Some(Self::PositionCorrection {
+                uri: track_id.to_uri().expect("a valid uri"),
+                position_ms,
+            }),
+            PlayerEvent::PositionChanged {
+                track_id,
+                position_ms,
+                ..
+            } => Some(Self::PositionChanged {
                 uri: track_id.to_uri().expect("a valid uri"),
                 position_ms,
             }),
