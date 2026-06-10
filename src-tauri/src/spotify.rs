@@ -29,8 +29,9 @@ use thiserror::Error;
 use crate::settings::get_config_dir;
 pub type SharedPlayer = Arc<tokio::sync::Mutex<SpotifyPlayer>>;
 pub struct SpotifySession {
-    inner: Session,
+    pub inner: Session,
     cache: Cache,
+    pub access_token: Arc<tokio::sync::RwLock<Option<String>>>,
 }
 
 impl Default for SpotifySession {
@@ -40,10 +41,13 @@ impl Default for SpotifySession {
                 Cache::new(Some(config_dir.clone()), None, Some(config_dir), None).ok()
             })
             .expect("a cache to be created");
-        let session = Session::new(SessionConfig::default(), Some(cache.clone()));
+        let mut config = SessionConfig::default();
+        config.client_id = "65b708073fc0480ea92a077233ca87bd".to_string();
+        let session = Session::new(config, Some(cache.clone()));
         Self {
             inner: session,
             cache,
+            access_token: Arc::new(tokio::sync::RwLock::new(None)),
         }
     }
 }
@@ -51,11 +55,12 @@ impl Default for SpotifySession {
 impl SpotifySession {
     pub async fn login(&self, app: &AppHandle) -> Result<(), SessionError> {
         log::debug!("Getting credentials");
+        let has_oauth = Settings::current().oauth_token.refresh_token.is_some();
         let credentials = match self.cache.credentials() {
-            Some(credentials) => credentials,
-            None => {
-                log::debug!("No credentials in cache, starting OAuth flow...");
-                Self::get_credentials_from_oauth(app).await?
+            Some(credentials) if has_oauth => credentials,
+            _ => {
+                log::debug!("No cached OAuth tokens found or refresh token missing. Forcing OAuth flow...");
+                Self::get_credentials_from_oauth(app, self.access_token.clone()).await?
             }
         };
 
@@ -67,11 +72,14 @@ impl SpotifySession {
         Ok(())
     }
 
-    async fn get_credentials_from_oauth(app: &AppHandle) -> Result<Credentials, SessionError> {
+    async fn get_credentials_from_oauth(
+        app: &AppHandle,
+        access_token_cell: Arc<tokio::sync::RwLock<Option<String>>>,
+    ) -> Result<Credentials, SessionError> {
         let oauth_flow = OAuthFlow::new(
             "https://accounts.spotify.com/authorize",
             "https://accounts.spotify.com/api/token",
-            "65b708073fc0480ea92a077233ca87bd",
+            "d420a117a32841c2b3474932e49fb54b",
         )
         .map_err(|e| SessionError::OauthError { e })?;
 
@@ -111,8 +119,27 @@ impl SpotifySession {
         *token_received.lock().unwrap() = true;
         let _ = window.close();
 
+        let access_token_str = token.access_token().secret().to_string();
+        
+        {
+            let mut settings = crate::settings::Settings::current_mut();
+            settings.oauth_token.access_token = Some(access_token_str.clone());
+            settings.oauth_token.refresh_token = token.refresh_token().map(|t| t.secret().to_string());
+            let expires_in = token.expires_in().unwrap_or(std::time::Duration::from_secs(3600));
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            settings.oauth_token.expires_at = Some(now + expires_in.as_secs());
+        }
+
+        {
+            let mut guard = access_token_cell.write().await;
+            *guard = Some(access_token_str.clone());
+        }
+
         Ok(Credentials::with_access_token(
-            token.access_token().secret(),
+            &access_token_str,
         ))
     }
 }

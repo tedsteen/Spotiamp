@@ -94,7 +94,12 @@ impl OAuthFlow {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (auth_url, _) = client
             .authorize_url(CsrfToken::new_random)
-            .add_scopes(vec![Scope::new("streaming".to_string())])
+            .add_scopes(vec![
+                Scope::new("streaming".to_string()),
+                Scope::new("playlist-read-private".to_string()),
+                Scope::new("playlist-read-collaborative".to_string()),
+                Scope::new("user-library-read".to_string()),
+            ])
             .set_pkce_challenge(pkce_challenge)
             .url();
 

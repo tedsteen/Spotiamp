@@ -85,16 +85,20 @@ export function handleDrop(urlCallback) {
      */
     function documentDropListener(ev) {
         if (ev.dataTransfer) {
-            for (const item of ev.dataTransfer.items) {
-                if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
-                    item.getAsString((itemText) => {
-                        const urls = itemText
-                            .split("http")
-                            .filter(Boolean) // Remove any empty strings from the beginning
-                            .map(url => "http" + url);
+            const items = Array.from(ev.dataTransfer.items);
+            const uriListItem = items.find(item => item.kind === "string" && item.type.match(/^text\/uri-list/));
+            const targetItem = uriListItem || items.find(item => item.kind === "string" && item.type.match(/^text\/plain/));
+
+            if (targetItem) {
+                targetItem.getAsString((itemText) => {
+                    const urls = itemText
+                        .split(/\r?\n/)
+                        .map(line => line.trim())
+                        .filter(line => line.startsWith("http") || line.startsWith("spotify:"));
+                    if (urls.length > 0) {
                         urlCallback(urls);
-                    });
-                }
+                    }
+                });
             }
         }
 
