@@ -149,19 +149,88 @@
     });
   }
   let scroll = $state(0);
+  const PLAYLIST_ROW_HEIGHT = 14.5;
   /**
    * @type {HTMLElement | undefined}
    */
   let scrollElement = $state();
-  /**
-   * @param {DocumentEventMap["scroll"]} e
-   */
-  function parseScroll(e) {
-    if (scrollElement) {
-      const max = scrollElement.scrollHeight - scrollElement.clientHeight;
+  let wheelDelta = 0;
+
+  function scrollMax() {
+    return scrollElement
+      ? scrollElement.scrollHeight - scrollElement.clientHeight
+      : 0;
+  }
+
+  function scrollRowHeight() {
+    return PLAYLIST_ROW_HEIGHT * REACTIVE_WINDOW_SIZE.zoom;
+  }
+
+  function syncScrollThumb() {
+    const max = scrollMax();
+    if (scrollElement && max > 0) {
       const value = Math.min(Math.max(0, scrollElement.scrollTop), max);
       scroll = (value / max) * 100;
+    } else {
+      scroll = 0;
     }
+  }
+
+  /**
+   * @param {number} row
+   */
+  function scrollToRow(row) {
+    if (!scrollElement) {
+      return;
+    }
+
+    scrollElement.scrollTop = Math.min(
+      Math.max(0, row * scrollRowHeight()),
+      scrollMax(),
+    );
+    syncScrollThumb();
+  }
+
+  /**
+   * @param {number} offset
+   */
+  function scrollByRows(offset) {
+    if (!scrollElement) {
+      return;
+    }
+
+    scrollToRow(
+      Math.round(scrollElement.scrollTop / scrollRowHeight()) + offset,
+    );
+  }
+
+  /**
+   * @param {WheelEvent} event
+   */
+  function onWheelScroll(event) {
+    let delta = event.deltaY || event.deltaX;
+    if (delta === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.deltaMode == WheelEvent.DOM_DELTA_LINE) {
+      delta *= scrollRowHeight();
+    } else if (event.deltaMode == WheelEvent.DOM_DELTA_PAGE && scrollElement) {
+      delta *= scrollElement.clientHeight;
+    }
+
+    wheelDelta += delta;
+    const rows =
+      wheelDelta > 0
+        ? Math.floor(wheelDelta / scrollRowHeight())
+        : Math.ceil(wheelDelta / scrollRowHeight());
+    if (rows === 0) {
+      return;
+    }
+
+    scrollByRows(rows);
+    wheelDelta -= rows * scrollRowHeight();
   }
 
   /**
@@ -169,8 +238,8 @@
    */
   function onManualScroll(event) {
     if (scrollElement && event.target instanceof HTMLInputElement) {
-      const max = scrollElement.scrollHeight - scrollElement.clientHeight;
-      scrollElement.scrollTop = (parseInt(event.target.value) / 100) * max;
+      const targetTop = (parseInt(event.target.value, 10) / 100) * scrollMax();
+      scrollToRow(Math.round(targetTop / scrollRowHeight()));
     }
   }
 
@@ -178,7 +247,7 @@
   // Winamp-style: the selection shifts by however many rows the pointer has
   // travelled from where the drag started, regardless of which row it's over.
   const EDGE_SCROLL_ZONE = 12;
-  const EDGE_SCROLL_SPEED = 6;
+  const EDGE_SCROLL_INTERVAL_MS = 80;
 
   /**
    * @typedef {import('$lib/playlist.svelte').TrackRow} Row
@@ -202,6 +271,7 @@
   let isDragging = $state(false);
   /** @type {number | undefined} */
   let edgeScrollFrame;
+  let lastEdgeScrollAt = 0;
 
   /**
    * Shift the dragged selection by `offset` rows relative to its start.
@@ -244,7 +314,10 @@
    * Continuously scroll while the pointer rests near the top/bottom edge,
    * keeping the offset consistent by shifting the drag origin as we scroll.
    */
-  function edgeScrollTick() {
+  /**
+   * @param {number} now
+   */
+  function edgeScrollTick(now) {
     edgeScrollFrame = undefined;
     if (!drag || !scrollElement) {
       return;
@@ -253,18 +326,22 @@
     const rect = scrollElement.getBoundingClientRect();
     let delta = 0;
     if (drag.pointerY < rect.top + EDGE_SCROLL_ZONE) {
-      delta = -EDGE_SCROLL_SPEED;
+      delta = -1;
     } else if (drag.pointerY > rect.bottom - EDGE_SCROLL_ZONE) {
-      delta = EDGE_SCROLL_SPEED;
+      delta = 1;
     }
 
-    if (delta !== 0) {
+    if (delta !== 0 && now - lastEdgeScrollAt >= EDGE_SCROLL_INTERVAL_MS) {
       const before = scrollElement.scrollTop;
-      scrollElement.scrollTop += delta;
+      scrollByRows(delta);
       // Move the drag origin by however much we actually scrolled so the
       // pointer-to-row mapping keeps growing while held at the edge.
       drag.startY -= scrollElement.scrollTop - before;
       updateDragFromPointer();
+      lastEdgeScrollAt = now;
+    }
+
+    if (delta !== 0) {
       edgeScrollFrame = requestAnimationFrame(edgeScrollTick);
     }
   }
@@ -316,6 +393,7 @@
       moved: false,
       pointerY: e.clientY,
     };
+    lastEdgeScrollAt = 0;
     window.addEventListener("mousemove", onDragMove);
     window.addEventListener("mouseup", onDragEnd);
   }
@@ -352,18 +430,24 @@
     }
     drag = undefined;
     isDragging = false;
+    lastEdgeScrollAt = 0;
   }
 </script>
 
-<span style:--playlist-w={playlist.width} style:--playlist-h={playlist.height}>
+<span
+  style:--playlist-w={playlist.width}
+  style:--playlist-h={playlist.height}
+  style:--track-row-height={`${PLAYLIST_ROW_HEIGHT}px`}
+>
   <div
     class="tracks-container"
     onkeydown={preventKeyboardScrolling}
+    onwheel={onWheelScroll}
     role="scrollbar"
     tabindex="0"
     aria-controls="playlist-tracks"
     aria-valuenow={scroll}
-    onscroll={parseScroll}
+    onscroll={syncScrollThumb}
     bind:this={scrollElement}
   >
     <table id="playlist-tracks" class:dragging={isDragging}>
@@ -479,7 +563,6 @@
   }
   /* ------ TRACKS ------ */
   .tracks-container {
-    --track-row-height: 14.5px;
     margin-top: calc(20px * var(--zoom));
     margin-left: calc(10px * var(--zoom));
     width: calc((var(--playlist-w) * 25px - 29px) * var(--zoom));
@@ -503,7 +586,6 @@
 
   input.scroll-bar {
     cursor: url(/src/static/assets/skins/base-2.91/EQSLID.CUR), default;
-    --track-row-height: 14.5px;
     writing-mode: vertical-lr;
     direction: ltr;
     appearance: none;
