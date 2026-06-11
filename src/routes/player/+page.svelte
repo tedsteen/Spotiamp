@@ -619,17 +619,12 @@
   /* ------ VISUALIZER ------ */
   .visualizer-bar {
     position: absolute;
-    display: inline-block;
     left: calc((24px + var(--bar-idx) * 4px) * var(--zoom));
     width: calc(var(--zoom) * 3px);
 
     --max-height: 16px;
-    top: calc((59px - var(--max-height)) * var(--zoom));
-    height: calc(var(--max-height) * var(--zoom));
-
-    clip-path: rect(
-      calc(var(--zoom) * var(--max-height) * (1 - var(--height))) auto auto auto
-    );
+    top: calc((59px - var(--max-height) * var(--height)) * var(--zoom));
+    height: calc(var(--max-height) * var(--height) * var(--zoom));
 
     background: linear-gradient(
       rgb(213 76 0) 0% 6.67%,
@@ -648,6 +643,9 @@
       rgb(40 148 1) 86.71% 93.38%,
       rgb(27 132 6) 93.38% 100.05%
     );
+    background-position: bottom;
+    background-repeat: no-repeat;
+    background-size: 100% calc(var(--max-height) * var(--zoom));
   }
   .visualizer-bar-hat {
     position: absolute;
