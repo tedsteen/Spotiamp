@@ -417,6 +417,7 @@
     type="range"
     class="sprite volume-sprite"
     style:--volume={volume}
+    style:--volume-row={Math.floor((volume / 100) * 27)}
     id="volume"
     min="0"
     max="100"
@@ -619,35 +620,33 @@
   /* ------ VISUALIZER ------ */
   .visualizer-bar {
     position: absolute;
-    display: inline-block;
     left: calc((24px + var(--bar-idx) * 4px) * var(--zoom));
     width: calc(var(--zoom) * 3px);
 
     --max-height: 16px;
-    top: calc((59px - var(--max-height)) * var(--zoom));
-    height: calc(var(--max-height) * var(--zoom));
-
-    clip-path: rect(
-      calc(var(--zoom) * var(--max-height) * (1 - var(--height))) auto auto auto
-    );
+    top: calc((59px - var(--max-height) * var(--height)) * var(--zoom));
+    height: calc(var(--max-height) * var(--height) * var(--zoom));
 
     background: linear-gradient(
-      rgb(213 76 0) 0% 6.67%,
-      rgb(213 89 0) 6.67% 13.34%,
-      rgb(215 102 0) 13.34% 20.009999999999998%,
-      rgb(214 115 1) 20.009999999999998% 26.68%,
-      rgb(197 124 4) 26.68% 33.35%,
-      rgb(222 165 21) 33.35% 40.019999999999996%,
-      rgb(213 181 34) 40.019999999999996% 46.69%,
-      rgb(189 222 42) 46.69% 53.36%,
-      rgb(148 221 34) 53.36% 60.03%,
-      rgb(41 206 16) 60.03% 66.7%,
-      rgb(50 190 16) 66.7% 73.37%,
-      rgb(56 181 17) 73.37% 80.03999999999999%,
-      rgb(49 156 6) 80.03999999999999% 86.71%,
-      rgb(40 148 1) 86.71% 93.38%,
-      rgb(27 132 6) 93.38% 100.05%
+      rgb(213, 76, 0) 0% 6.67%,
+      rgb(213, 89, 0) 6.67% 13.34%,
+      rgb(215, 102, 0) 13.34% 20.009999999999998%,
+      rgb(214, 115, 1) 20.009999999999998% 26.68%,
+      rgb(197, 124, 4) 26.68% 33.35%,
+      rgb(222, 165, 21) 33.35% 40.019999999999996%,
+      rgb(213, 181, 34) 40.019999999999996% 46.69%,
+      rgb(189, 222, 42) 46.69% 53.36%,
+      rgb(148, 221, 34) 53.36% 60.03%,
+      rgb(41, 206, 16) 60.03% 66.7%,
+      rgb(50, 190, 16) 66.7% 73.37%,
+      rgb(56, 181, 17) 73.37% 80.03999999999999%,
+      rgb(49, 156, 6) 80.03999999999999% 86.71%,
+      rgb(40, 148, 1) 86.71% 93.38%,
+      rgb(27, 132, 6) 93.38% 100.05%
     );
+    background-position: bottom;
+    background-repeat: no-repeat;
+    background-size: 100% calc(var(--max-height) * var(--zoom));
   }
   .visualizer-bar-hat {
     position: absolute;
@@ -717,9 +716,7 @@
   #volume {
     appearance: none;
     cursor: url(/src/static/assets/skins/base-2.91/VOLBAL.CUR), default;
-    background-position-y: calc(
-      round(down, var(--volume) / 100 * 27, 1) * -15px
-    );
+    background-position-y: calc(var(--volume-row) * -15px);
   }
 
   #volume::-webkit-slider-thumb {
