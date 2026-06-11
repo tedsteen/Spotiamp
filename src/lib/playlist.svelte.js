@@ -55,15 +55,17 @@ export class TrackRow extends PlaylistRow {
     }
 
     populateTrack() {
-        this.trackPromise ??= SpotifyTrack.loadFromUri(this.uri)
-            .then((track) => {
-                this.track = track;
-                return track;
-            })
-            .catch((e) => {
-                this.loadingMessage = `Failed to load track ${this.uri.id} (${e})`;
-                throw e;
-            });
+        if (!this.trackPromise) {
+            this.trackPromise = SpotifyTrack.loadFromUri(this.uri)
+                .then((track) => {
+                    this.track = track;
+                    return track;
+                })
+                .catch((e) => {
+                    this.loadingMessage = `Failed to load track ${this.uri.id} (${e})`;
+                    throw e;
+                });
+        }
 
         return this.trackPromise;
     }
