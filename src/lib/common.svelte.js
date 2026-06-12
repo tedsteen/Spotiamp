@@ -1,9 +1,9 @@
-import { message } from '@tauri-apps/plugin-dialog';
+import { message } from "@tauri-apps/plugin-dialog";
 
 class ReactiveWindowSize {
-    width = $state(275.0)
-    height = $state(116.0)
-    zoom = $state(1.0)
+    width = $state(275.0);
+    height = $state(116.0);
+    zoom = $state(1.0);
 
     /**
      * @param {number} width
@@ -19,22 +19,22 @@ class ReactiveWindowSize {
      */
     setZoom(zoom) {
         this.zoom = zoom;
-        document.querySelector('body')?.style.setProperty('--zoom', `${zoom}`);
+        document.querySelector("body")?.style.setProperty("--zoom", `${zoom}`);
     }
 }
 export const REACTIVE_WINDOW_SIZE = new ReactiveWindowSize();
 
 export const enterExitViewportObserver = new IntersectionObserver(
     (entries) => {
-        entries.forEach(entry => {
-            const eventName = entry.isIntersecting ? 'enterViewport' : 'exitViewport';
+        entries.forEach((entry) => {
+            const eventName = entry.isIntersecting ? "enterViewport" : "exitViewport";
             entry.target.dispatchEvent(new CustomEvent(eventName));
         });
-    }
+    },
 );
 
 /**
- * @param {HTMLElement} element 
+ * @param {HTMLElement} element
  */
 export function enterExitViewport(element) {
     enterExitViewportObserver.observe(element);
@@ -42,13 +42,13 @@ export function enterExitViewport(element) {
     return {
         destroy() {
             enterExitViewportObserver.unobserve(element);
-        }
-    }
+        },
+    };
 }
 
 /**
- * @param {number} start 
- * @param {number} end 
+ * @param {number} start
+ * @param {number} end
  */
 export function* range(start, end) {
     for (let i = start; i <= end; i++) {
@@ -57,14 +57,14 @@ export function* range(start, end) {
 }
 
 /**
- * @param {Error} e 
+ * @param {Error} e
  */
 export async function handleError(e) {
-    await message(`${e}`, { title: 'Spotiamp', kind: 'error' });
+    await message(`${e}`, { title: "Spotiamp", kind: "error" });
 }
 
 /**
- * @param {WindowEventMap[keyof WindowEventMap]} ev 
+ * @param {WindowEventMap[keyof WindowEventMap]} ev
  */
 function preventAndStopPropagation(ev) {
     ev.preventDefault();
@@ -72,7 +72,17 @@ function preventAndStopPropagation(ev) {
 }
 
 /**
- * @param {(urls: string[]) => void} urlCallback 
+ * @param {string} uriList
+ */
+function parseUriList(uriList) {
+    return uriList
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"));
+}
+
+/**
+ * @param {(urls: string[]) => void} urlCallback
  * @returns {() => void} unlisten
  */
 export function handleDrop(urlCallback) {
@@ -81,23 +91,18 @@ export function handleDrop(urlCallback) {
     window.addEventListener("drop", preventAndStopPropagation);
 
     /**
-     * @param {DocumentEventMap["drop"]} ev 
+     * @param {DocumentEventMap["drop"]} ev
      */
     function documentDropListener(ev) {
         if (ev.dataTransfer) {
             for (const item of ev.dataTransfer.items) {
                 if (item.kind === "string" && item.type.match(/^text\/uri-list/)) {
                     item.getAsString((itemText) => {
-                        const urls = itemText
-                            .split("http")
-                            .filter(Boolean) // Remove any empty strings from the beginning
-                            .map(url => "http" + url);
-                        urlCallback(urls);
+                        urlCallback(parseUriList(itemText));
                     });
                 }
             }
         }
-
     }
     document.addEventListener("drop", documentDropListener);
     return () => {
@@ -105,7 +110,7 @@ export function handleDrop(urlCallback) {
         window.removeEventListener("dragenter", preventAndStopPropagation);
         window.removeEventListener("dragover", preventAndStopPropagation);
         window.removeEventListener("drop", preventAndStopPropagation);
-    }
+    };
 }
 
 /**

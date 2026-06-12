@@ -2,12 +2,12 @@
   /**
    * @typedef {Object} Props
    * @property {string} number
-   * @property {string} x
-   * @property {string} y
+   * @property {number} x
+   * @property {number} y
    */
 
   /** @type {Props} */
-  let { number = $bindable(), x, y } = $props();
+  let { number, x, y } = $props();
 </script>
 
 <div class="digits-container" style:--x={x} style:--y={y}>
@@ -24,7 +24,6 @@
   .digits-container {
     background-color: transparent;
     position: absolute;
-    /* overflow: hidden; */
     width: calc(2 * 9px * var(--zoom));
     height: calc(13px * var(--zoom));
     left: calc(var(--x) * var(--zoom) * 1px);

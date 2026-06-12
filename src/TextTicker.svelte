@@ -5,21 +5,15 @@
    * @property {string} text
    * @property {string | undefined} textOverride
    * @property {boolean} unavailable
-   * @property {string} x
-   * @property {string} y
+   * @property {number} x
+   * @property {number} y
    */
 
   /** @type {Props} */
-  let {
-    text = $bindable(),
-    textOverride = $bindable(),
-    unavailable = $bindable(),
-    x,
-    y,
-  } = $props();
+  let { text, textOverride, unavailable, x, y } = $props();
 
   /**
-   * @type {Object<String, [number, number]>}
+   * @type {Record<string, [number, number]>}
    */
   const letterLUT = {
     a: [0, 0],
@@ -113,7 +107,7 @@
 
   // Reset xShift on new text
   $effect(() => {
-    text; // Make sure the effect depends on the text...
+    void text;
     xShift = 0;
   });
 
@@ -140,8 +134,8 @@
 
 <div
   class="text-container"
-  style:--x="{x}px"
-  style:--y="{y}px"
+  style:--x={x}
+  style:--y={y}
   style:opacity={unavailable ? "50%" : "100%"}
 >
   {#each textWindow as lut, index}
@@ -160,8 +154,8 @@
     overflow: hidden;
     width: calc(31 * 5px * var(--zoom));
     height: calc(6px * var(--zoom));
-    left: calc(var(--x) * var(--zoom));
-    top: calc(var(--y) * var(--zoom));
+    left: calc(var(--x) * var(--zoom) * 1px);
+    top: calc(var(--y) * var(--zoom) * 1px);
   }
 
   .letter-sprite {

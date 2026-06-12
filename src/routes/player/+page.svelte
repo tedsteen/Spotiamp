@@ -85,6 +85,18 @@
   let numberDisplayHidden = $state(true);
 
   const currentTime = $derived(durationToMMSS(seekPosition));
+  const trackDisplayText = $derived(
+    loadedTrack
+      ? `${loadedTrack.displayName} (${loadedTrack.displayDuration})`
+      : "Winamp 2.91",
+  );
+  const stoppedOrUnavailable = $derived.by(() =>
+    playerState == "stopped" || playerState == "unavailable",
+  );
+  const timeDisplayHidden = $derived.by(() =>
+    stoppedOrUnavailable || (playerState == "paused" && numberDisplayHidden),
+  );
+  const volumeSpriteRow = $derived(Math.floor((volume / 100) * 27));
   const tickerOverrideText = $derived.by(() => {
     if (uiInputState == "seeking") {
       return loadedTrack
@@ -94,6 +106,27 @@
       return `VOLUME: ${volume}%`;
     }
   });
+
+  function emitPreviousPressed() {
+    emitWindowEvent("playerWindow", { PreviousPressed: null });
+  }
+
+  function emitNextPressed() {
+    emitWindowEvent("playerWindow", { NextPressed: null });
+  }
+
+  const controlButtons = [
+    {
+      label: "Previous",
+      index: 0,
+      width: undefined,
+      click: emitPreviousPressed,
+    },
+    { label: "Play", index: 1, width: undefined, click: play },
+    { label: "Pause", index: 2, width: undefined, click: pause },
+    { label: "Stop", index: 3, width: undefined, click: stop },
+    { label: "Next", index: 4, width: "22px", click: emitNextPressed },
+  ];
 
   /**
    * @param {SpotifyTrack} track
@@ -153,7 +186,7 @@
   const visualizer = new Visualizer();
   $effect(() => {
     if (playerState != "playing") {
-      visualizer.stop(playerState == "stopped" || playerState == "unavailable");
+      visualizer.stop(stoppedOrUnavailable);
     } else {
       visualizer.start();
     }
@@ -377,27 +410,21 @@
 
   <TextTicker
     unavailable={playerState == "unavailable"}
-    text={loadedTrack
-      ? `${loadedTrack.displayName} (${loadedTrack.displayDuration})`
-      : "Winamp 2.91"}
+    text={trackDisplayText}
     textOverride={tickerOverrideText}
-    x="111"
-    y="27"
+    x={111}
+    y={27}
   />
-  <div
-    class:hidden={playerState == "stopped" ||
-      playerState == "unavailable" ||
-      (playerState == "paused" && numberDisplayHidden)}
-  >
+  <div class:hidden={timeDisplayHidden}>
     <NumberDisplay
       number={currentTime.m.toString().padStart(2, "0")}
-      x="48"
-      y="26"
+      x={48}
+      y={26}
     />
     <NumberDisplay
       number={currentTime.s.toString().padStart(2, "0")}
-      x="78"
-      y="26"
+      x={78}
+      y={26}
     />
   </div>
   {#each visualizer.bars as bar}
@@ -417,7 +444,7 @@
     type="range"
     class="sprite volume-sprite"
     style:--volume={volume}
-    style:--volume-row={Math.floor((volume / 100) * 27)}
+    style:--volume-row={volumeSpriteRow}
     id="volume"
     min="0"
     max="100"
@@ -428,7 +455,7 @@
   <input
     type="range"
     class="sprite seek-position-sprite"
-    class:hidden={playerState == "stopped" || playerState == "unavailable"}
+    class:hidden={stoppedOrUnavailable}
     id="seek-position"
     min="0"
     max={loadedTrack?.durationInMs}
@@ -441,50 +468,17 @@
     }}
   />
 
-  <button
-    class="sprite control-buttons-sprite"
-    style:--button-x="calc(16px + (var(--button-width) * 0))"
-    style:--button-y="88px"
-    style:--button-idx="0"
-    onclick={() => emitWindowEvent("playerWindow", { PreviousPressed: null })}
-    aria-label="Previous"
-  ></button>
-  <button
-    class="sprite control-buttons-sprite"
-    style:--button-x="calc(16px + (var(--button-width) * 1))"
-    style:--button-y="88px"
-    style:--button-idx="1"
-    onclick={play}
-    aria-label="Play"
-  ></button>
-
-  <button
-    class="sprite control-buttons-sprite"
-    style:--button-x="calc(16px + (var(--button-width) * 2))"
-    style:--button-y="88px"
-    style:--button-idx="2"
-    onclick={pause}
-    aria-label="Pause"
-  ></button>
-
-  <button
-    class="sprite control-buttons-sprite"
-    style:--button-x="calc(16px + (var(--button-width) * 3))"
-    style:--button-y="88px"
-    style:--button-idx="3"
-    onclick={stop}
-    aria-label="Stop"
-  ></button>
-
-  <button
-    class="sprite control-buttons-sprite"
-    style:--button-x="calc(16px + (var(--button-width) * 4))"
-    style:--button-y="88px"
-    style:--button-idx="4"
-    style:width="22px"
-    onclick={() => emitWindowEvent("playerWindow", { NextPressed: null })}
-    aria-label="Next"
-  ></button>
+  {#each controlButtons as button}
+    <button
+      class="sprite control-buttons-sprite"
+      style:--button-x={`calc(16px + (var(--button-width) * ${button.index}))`}
+      style:--button-y="88px"
+      style:--button-idx={button.index}
+      style:width={button.width}
+      onclick={button.click}
+      aria-label={button.label}
+    ></button>
+  {/each}
 
   <!-- <div
     class="sprite control-buttons-sprite"
