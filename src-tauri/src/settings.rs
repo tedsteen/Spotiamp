@@ -133,9 +133,18 @@ impl Default for PlayerSettings {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Hash)]
+pub struct OAuthTokenSettings {
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
+    pub expires_at: Option<u64>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Hash)]
 pub struct Settings {
     pub player: PlayerSettings,
     pub playlist: PlaylistSettings,
+    #[serde(default)]
+    pub oauth_token: OAuthTokenSettings,
 }
 
 impl Settings {
