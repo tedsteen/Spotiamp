@@ -754,7 +754,7 @@
     <button class="menu-backdrop" onclick={() => showUrlModal = false} aria-label="Close modal"></button>
     <div class="winamp-dialog url-modal-container" style="left: calc(10px * var(--zoom)); width: calc((var(--playlist-w) * 25px - 29px) * var(--zoom));">
       <div class="search-header">
-        <span class="search-title">ADD URL OR URI</span>
+        <span class="search-title">ADD SPOTIFY URL</span>
         <button class="search-close-btn" onclick={() => showUrlModal = false}>X</button>
       </div>
       <div class="search-input-wrapper">
