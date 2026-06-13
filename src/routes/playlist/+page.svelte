@@ -752,7 +752,7 @@
   <!-- Add URL Modal -->
   {#if showUrlModal}
     <button class="menu-backdrop" onclick={() => showUrlModal = false} aria-label="Close modal"></button>
-    <div class="winamp-menu winamp-dialog url-modal-container" style="left: calc(20px * var(--zoom)); width: calc((var(--playlist-w) * 25px - 40px) * var(--zoom));">
+    <div class="winamp-menu winamp-dialog url-modal-container" style="left: calc(10px * var(--zoom)); width: calc((var(--playlist-w) * 25px - 29px) * var(--zoom));">
       <div class="search-header">
         <span class="search-title">ADD URL OR URI</span>
         <button class="search-close-btn" onclick={() => showUrlModal = false}>X</button>
@@ -1344,7 +1344,7 @@
 
   .url-modal-container {
     height: auto !important;
-    top: calc(40px * var(--zoom));
+    top: calc(20px * var(--zoom));
     font-family: "px sans nouveaux", sans-serif;
     color: rgb(0, 255, 0);
     font-size: calc(7px * var(--zoom));
