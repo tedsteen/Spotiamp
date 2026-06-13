@@ -148,6 +148,7 @@ pub fn run() {
             playlist_window::get_playlist_settings,
             playlist_window::set_uris,
             playlist_window::set_playlist_inner_size,
+            playlist_window::get_spotify_access_token,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
