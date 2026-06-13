@@ -1345,5 +1345,8 @@
   .url-modal-container {
     height: auto !important;
     top: calc(40px * var(--zoom));
+    font-family: "px sans nouveaux", sans-serif;
+    color: rgb(0, 255, 0);
+    font-size: calc(7px * var(--zoom));
   }
 </style>
