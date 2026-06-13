@@ -29,7 +29,7 @@ use thiserror::Error;
 use crate::settings::get_config_dir;
 pub type SharedPlayer = Arc<tokio::sync::Mutex<SpotifyPlayer>>;
 pub struct SpotifySession {
-    inner: Session,
+    pub inner: Session,
     cache: Cache,
 }
 
