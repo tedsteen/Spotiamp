@@ -752,7 +752,7 @@
   <!-- Add URL Modal -->
   {#if showUrlModal}
     <button class="menu-backdrop" onclick={() => showUrlModal = false} aria-label="Close modal"></button>
-    <div class="winamp-menu winamp-dialog url-modal-container" style="left: calc(20px * var(--zoom)); width: calc((var(--playlist-w) * 25px - 49px) * var(--zoom));">
+    <div class="winamp-menu winamp-dialog url-modal-container" style="left: calc(20px * var(--zoom)); width: calc((var(--playlist-w) * 25px - 40px) * var(--zoom));">
       <div class="search-header">
         <span class="search-title">ADD URL OR URI</span>
         <button class="search-close-btn" onclick={() => showUrlModal = false}>X</button>
@@ -763,7 +763,12 @@
           type="text"
           bind:value={urlInput}
           placeholder="https://open.spotify.com/..."
-          onkeydown={stopKeyPropagation}
+          onkeydown={(e) => {
+            stopKeyPropagation(e);
+            if (e.key === 'Enter') {
+              submitUrlModal();
+            }
+          }}
         />
         <button class="search-btn" onclick={submitUrlModal}>OK</button>
       </div>
