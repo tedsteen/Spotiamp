@@ -4,6 +4,7 @@ use librespot::playback::player::PlayerEvent;
 use serde::{Deserialize, Serialize};
 use spotify::{SessionError, SpotifyPlayer};
 use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri_plugin_dialog::DialogExt;
 use thiserror::Error;
 
 use crate::spotify::SpotifySession;
@@ -168,6 +169,12 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = start_app(&app_handle).await {
                     log::error!("Failed to start ({e:?})");
+                    let _ = app_handle
+                        .dialog()
+                        .message(format!("{e}"))
+                        .title("Spotiamp - Startup Error")
+                        .kind(tauri_plugin_dialog::MessageDialogKind::Error)
+                        .blocking_show();
                     app_handle.exit(1);
                 }
             });

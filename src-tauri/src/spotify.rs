@@ -59,12 +59,27 @@ impl SpotifySession {
             }
         };
 
-        self.inner
-            .connect(credentials, true)
-            .await
-            .map_err(|e| SessionError::ConnectError { e })?;
-        log::debug!("Success! Using credentials from OAuth-flow and saving them for next time");
-        Ok(())
+        match self.inner.connect(credentials, true).await {
+            Ok(_) => {
+                log::debug!("Successfully connected with cached credentials");
+                Ok(())
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to connect with cached credentials ({e:?}), re-authenticating..."
+                );
+                if let Some(config_dir) = get_config_dir() {
+                    let _ = std::fs::remove_file(config_dir.join("credentials.json"));
+                }
+                let new_credentials = Self::get_credentials_from_oauth(app).await?;
+                self.inner
+                    .connect(new_credentials, true)
+                    .await
+                    .map_err(|e| SessionError::ConnectError { e })?;
+                log::debug!("Successfully connected after re-authentication");
+                Ok(())
+            }
+        }
     }
 
     async fn get_credentials_from_oauth(app: &AppHandle) -> Result<Credentials, SessionError> {
