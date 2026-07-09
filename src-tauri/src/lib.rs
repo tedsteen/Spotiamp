@@ -7,7 +7,8 @@ use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_dialog::DialogExt;
 use thiserror::Error;
 
-use crate::spotify::SpotifySession;
+use crate::oauth::OAuthError;
+use crate::spotify::{SpotifySession, pending_auth_url};
 mod app_window;
 mod oauth;
 mod player_window;
@@ -101,6 +102,15 @@ enum PlayerWindowEvent {
     DragEnded,
 }
 
+#[tauri::command]
+fn get_auth_url() -> Result<String, String> {
+    pending_auth_url()
+        .lock()
+        .map_err(|_| "lock error".to_string())?
+        .take()
+        .ok_or_else(|| "no pending auth URL".to_string())
+}
+
 async fn start_app(app_handle: &AppHandle) -> Result<(), StartError> {
     let session = SpotifySession::default();
     session
@@ -134,6 +144,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            get_auth_url,
             player_window::get_track_metadata,
             player_window::load_track,
             player_window::get_track_ids,
@@ -168,14 +179,26 @@ pub fn run() {
             });
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = start_app(&app_handle).await {
-                    log::error!("Failed to start ({e:?})");
-                    let _ = app_handle
-                        .dialog()
-                        .message(format!("{e}"))
-                        .title("Spotiamp - Startup Error")
-                        .kind(tauri_plugin_dialog::MessageDialogKind::Error)
-                        .blocking_show();
-                    app_handle.exit(1);
+                    let is_cancelled = matches!(
+                        &e,
+                        StartError::LoginFailed {
+                            e: SessionError::TokenExchangeFailure {
+                                e: OAuthError::Cancelled
+                            }
+                        }
+                    );
+                    if is_cancelled {
+                        log::info!("Login cancelled by user");
+                    } else {
+                        log::error!("Failed to start ({e:?})");
+                        let _ = app_handle
+                            .dialog()
+                            .message(format!("{e}"))
+                            .title("Spotiamp - Startup Error")
+                            .kind(tauri_plugin_dialog::MessageDialogKind::Error)
+                            .blocking_show();
+                    }
+                    std::process::exit(1);
                 }
             });
 

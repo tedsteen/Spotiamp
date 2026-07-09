@@ -35,6 +35,9 @@ pub enum OAuthError {
 
     #[error("Failed to setup local authentication server ({e})")]
     CouldNotStartServer { e: std::io::Error },
+
+    #[error("Login cancelled by user")]
+    Cancelled,
 }
 type Client = oauth2::Client<
     oauth2::StandardErrorResponse<oauth2::basic::BasicErrorResponseType>,
@@ -113,7 +116,10 @@ impl OAuthFlow {
         addr
     }
 
-    pub async fn start(self) -> Result<TokenType, OAuthError> {
+    pub async fn start(
+        self,
+        mut abort: tokio::sync::watch::Receiver<bool>,
+    ) -> Result<TokenType, OAuthError> {
         let (tx, mut rx) = tokio::sync::broadcast::channel::<AuthorizationCode>(1);
 
         #[derive(Deserialize)]
@@ -147,20 +153,24 @@ impl OAuthFlow {
         let listener = tokio::net::TcpListener::bind(self.socket_addr)
             .await
             .map_err(|e| OAuthError::CouldNotStartServer { e })?;
+        let mut abort_for_shutdown = abort.clone();
         axum::serve(listener, app)
             .with_graceful_shutdown({
                 let mut rx = tx.subscribe();
                 async move {
-                    let _ = rx.recv().await;
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        _ = abort_for_shutdown.changed() => {},
+                    }
                 }
             })
             .await
             .map_err(|e| OAuthError::CouldNotStartServer { e })?;
 
-        let code = rx
-            .recv()
-            .await
-            .map_err(|e| OAuthError::Recv { e: e.to_string() })?;
+        let code = tokio::select! {
+            result = rx.recv() => result.map_err(|e| OAuthError::Recv { e: e.to_string() })?,
+            _ = abort.changed() => return Err(OAuthError::Cancelled),
+        };
         log::debug!("Doing the exchange...");
         let http_client = reqwest::ClientBuilder::new()
             // Following redirects opens the client up to SSRF vulnerabilities.
