@@ -28,6 +28,12 @@ use thiserror::Error;
 
 use crate::settings::get_config_dir;
 pub type SharedPlayer = Arc<tokio::sync::Mutex<SpotifyPlayer>>;
+
+use std::sync::OnceLock;
+static PENDING_AUTH_URL: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+pub fn pending_auth_url() -> &'static Mutex<Option<String>> {
+    PENDING_AUTH_URL.get_or_init(|| Mutex::new(None))
+}
 pub struct SpotifySession {
     inner: Session,
     cache: Cache,
@@ -59,12 +65,27 @@ impl SpotifySession {
             }
         };
 
-        self.inner
-            .connect(credentials, true)
-            .await
-            .map_err(|e| SessionError::ConnectError { e })?;
-        log::debug!("Success! Using credentials from OAuth-flow and saving them for next time");
-        Ok(())
+        match self.inner.connect(credentials, true).await {
+            Ok(_) => {
+                log::debug!("Successfully connected with cached credentials");
+                Ok(())
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to connect with cached credentials ({e:?}), re-authenticating..."
+                );
+                if let Some(config_dir) = get_config_dir() {
+                    let _ = std::fs::remove_file(config_dir.join("credentials.json"));
+                }
+                let new_credentials = Self::get_credentials_from_oauth(app).await?;
+                self.inner
+                    .connect(new_credentials, true)
+                    .await
+                    .map_err(|e| SessionError::ConnectError { e })?;
+                log::debug!("Successfully connected after re-authentication");
+                Ok(())
+            }
+        }
     }
 
     async fn get_credentials_from_oauth(app: &AppHandle) -> Result<Credentials, SessionError> {
@@ -78,10 +99,15 @@ impl SpotifySession {
         let auth_url = oauth_flow.get_auth_url();
         log::debug!("Opening URL: {auth_url}");
 
+        *pending_auth_url().lock().unwrap() = Some(auth_url.clone());
+
+        let token_received = Arc::new(Mutex::new(false));
+        let (abort_tx, abort_rx) = tokio::sync::watch::channel(false);
+
         let window = tauri::WebviewWindowBuilder::new(
             app,
             "login",
-            tauri::WebviewUrl::External(auth_url.parse().expect("a valid auth URL")),
+            tauri::WebviewUrl::App("login-proxy".into()),
         )
         .title("Login")
         .inner_size(600.0, 800.0)
@@ -89,27 +115,28 @@ impl SpotifySession {
         .maximizable(false)
         .resizable(false)
         .build()
-        .map_err(|e| SessionError::OpenURLFailed { url: auth_url, e })?;
+        .map_err(|e| SessionError::OpenURLFailed {
+            url: auth_url.clone(),
+            e,
+        })?;
 
-        let token_received = Arc::new(Mutex::new(false));
         window.on_window_event({
             let token_received = token_received.clone();
+            let abort_tx = abort_tx.clone();
             move |e| {
                 if let tauri::WindowEvent::CloseRequested { .. } = &e
                     && !*token_received.lock().unwrap()
                 {
-                    log::info!("No token received when closing login window. Exiting.");
-                    std::process::exit(0);
+                    log::info!("No token received when closing login window. Aborting.");
+                    let _ = abort_tx.send(true);
                 }
             }
         });
 
-        let token = oauth_flow
-            .start()
-            .await
-            .map_err(|e| SessionError::TokenExchangeFailure { e })?;
+        let result = oauth_flow.start(abort_rx).await;
         *token_received.lock().unwrap() = true;
         let _ = window.close();
+        let token = result.map_err(|e| SessionError::TokenExchangeFailure { e })?;
 
         Ok(Credentials::with_access_token(
             token.access_token().secret(),

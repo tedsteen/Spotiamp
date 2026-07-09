@@ -22,6 +22,7 @@
   import {
     currentMonitor,
     getCurrentWindow,
+    LogicalSize,
     Window,
   } from "@tauri-apps/api/window";
   import {
@@ -211,6 +212,18 @@
   $effect(() => {
     invoke("set_double_size", { active: doubleSizeActive });
     REACTIVE_WINDOW_SIZE.setZoom(doubleSizeActive ? 2 : 1);
+  });
+
+  $effect(() => {
+    const zoom = REACTIVE_WINDOW_SIZE.zoom;
+    getCurrentWindow()
+      .setSize(
+        new LogicalSize(
+          REACTIVE_WINDOW_SIZE.width * zoom,
+          REACTIVE_WINDOW_SIZE.height * zoom,
+        ),
+      )
+      .catch(() => {});
   });
 
   onMount(() => {
