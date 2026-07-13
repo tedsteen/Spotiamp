@@ -35,7 +35,7 @@ pub fn pending_auth_url() -> &'static Mutex<Option<String>> {
     PENDING_AUTH_URL.get_or_init(|| Mutex::new(None))
 }
 pub struct SpotifySession {
-    inner: Session,
+    pub inner: Session,
     cache: Cache,
 }
 

@@ -236,6 +236,7 @@ export class Playlist {
         this.focusedRow = undefined;
         this.selectionAnchor = undefined;
         this.loadedRow = undefined;
+        this.persist();
     }
 
     /**
@@ -286,7 +287,17 @@ export class Playlist {
      */
     async addUrls(urls) {
         for (const url of urls) {
-            await this.addUri(SpotifyUri.fromUrl(url));
+            const cleanUrl = url.trim();
+            try {
+                if (cleanUrl.startsWith("spotify:")) {
+                    await this.addUri(SpotifyUri.fromString(cleanUrl));
+                } else {
+                    const urlWithoutQuery = cleanUrl.split('?')[0];
+                    await this.addUri(SpotifyUri.fromUrl(urlWithoutQuery));
+                }
+            } catch (e) {
+                console.error("Failed to parse dropped URL/URI:", cleanUrl, e);
+            }
         }
         this.persist();
     }

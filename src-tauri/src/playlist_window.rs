@@ -1,9 +1,28 @@
-use tauri::{AppHandle, LogicalPosition, WebviewWindow};
+use tauri::{AppHandle, LogicalPosition, WebviewWindow, State};
 
 use crate::{
     app_window,
     settings::{InnerWindowSize, PlaylistSettings, Settings},
+    spotify::SharedPlayer,
 };
+
+#[tauri::command]
+pub async fn get_spotify_access_token(
+    player: State<'_, SharedPlayer>,
+) -> Result<String, String> {
+    let player = player.lock().await;
+    match player
+        .session
+        .inner
+        .token_provider()
+        .get_token("playlist-read-private,playlist-read-collaborative,user-library-read")
+        .await
+    {
+        Ok(token) => Ok(token.access_token),
+        Err(e) => Err(format!("Failed to get Spotify token: {:?}", e)),
+    }
+}
+
 
 #[tauri::command]
 pub fn get_playlist_settings() -> PlaylistSettings {
