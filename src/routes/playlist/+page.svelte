@@ -4,6 +4,7 @@
     range,
     handleDrop,
     REACTIVE_WINDOW_SIZE,
+    syncNativeWindowSize,
   } from "#lib/common.svelte.js";
   import { emitWindowEvent } from "#lib/events.svelte.js";
   import { onMount } from "svelte";
@@ -39,6 +40,8 @@
   }
 
   applyInitialWindowSize();
+  // Resize the native window along with the skin (e.g. via the resize corner).
+  syncNativeWindowSize();
   const playlist = createInitialPlaylist();
 
   /**
