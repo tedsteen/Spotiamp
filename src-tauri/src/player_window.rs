@@ -62,6 +62,13 @@ pub async fn set_volume(volume: u16, player: State<'_, SharedPlayer>) -> Result<
 }
 
 #[tauri::command]
+pub async fn set_balance(balance: i16, player: State<'_, SharedPlayer>) -> Result<(), ()> {
+    player.lock().await.set_balance(balance);
+    Settings::current_mut().player.balance = balance;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_double_size(active: bool) {
     Settings::current_mut().player.double_size_active = active;
 }

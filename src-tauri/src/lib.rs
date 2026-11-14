@@ -158,6 +158,7 @@ pub fn run() {
             player_window::set_double_size,
             player_window::set_show_remaining_time,
             player_window::set_shuffle,
+            player_window::set_balance,
             player_window::set_repeat,
             player_window::take_latest_spectrum,
             player_window::seek,
