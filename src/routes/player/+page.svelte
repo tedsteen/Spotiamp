@@ -75,13 +75,10 @@
   }
   let showPlaylist = $state(initialShowPlaylist());
   let doubleSizeActive = $state(initialDoubleSizeActive());
-  // svelte-ignore state_referenced_locally (only the initial value)
-  let showRemainingTime = $state(playerSettings.show_remaining_time);
-
-  // svelte-ignore state_referenced_locally (only the initial value)
-  let shuffle = $state(playerSettings.shuffle);
-  // svelte-ignore state_referenced_locally (only the initial value)
-  let repeat = $state(playerSettings.repeat);
+  // Start from the saved settings, then toggled locally (writable $derived).
+  let showRemainingTime = $derived(playerSettings.show_remaining_time);
+  let shuffle = $derived(playerSettings.shuffle);
+  let repeat = $derived(playerSettings.repeat);
 
   function toggleShuffle() {
     shuffle = !shuffle;
