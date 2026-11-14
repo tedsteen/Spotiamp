@@ -5,37 +5,43 @@ on:
   push:
     tags:
       - "v*"
-  # Build signed artifacts on demand (downloadable from the run), no release.
+  # Signed installers to download and test, without a release.
+  pull_request:
   workflow_dispatch:
 
 concurrency:
   group: build-${{ github.ref }}
-  # A newer manual build of the same branch supersedes an older one; release
-  # builds are never cancelled.
-  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' }}
+  # A newer build of the same PR/branch supersedes an older one; release builds
+  # are never cancelled.
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   create-release:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    outputs:
-      release_id: ${{ steps.release.outputs.id }}
+    permissions:
+      contents: write
     steps:
-      - id: release
-        uses: softprops/action-gh-release@v3
-        with:
-          name: Spotiamp ${{ github.ref_name }}
-          draft: true
-          generate_release_notes: true
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}"
+          --draft --verify-tag --generate-notes --title "Spotiamp ${{ github.ref_name }}"
 
   bundle:
     needs: create-release
-    # Runs after create-release on a tag push, or on its own for a manual build
-    # (where create-release is skipped).
-    if: ${{ !cancelled() && needs.create-release.result != 'failure' }}
+    # Runs after create-release on a tag push, or on its own otherwise (where
+    # create-release is skipped). PRs from forks can't use the signing secrets,
+    # so they only get the check workflow.
+    if: >-
+      !cancelled() && needs.create-release.result != 'failure' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    permissions:
+      contents: write
     strategy:
       fail-fast: true
       matrix:
@@ -63,8 +69,7 @@ jobs:
           targets: ${{ matrix.rust-targets }}
 
       # Caches compiled dependencies. A run can only restore caches from its own
-      # branch/tag or the default branch, so this mostly speeds up repeated
-      # manual builds of the same branch.
+      # branch/PR/tag or the default branch.
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -90,9 +95,9 @@ jobs:
       # keychain itself and checks it matches bundle.macOS.signingIdentity, then
       # notarizes with the APPLE_ID credentials. On Windows it runs the
       # bundle.windows.signCommand (artifact-signing-cli, using the AZURE_* creds).
-      - uses: tauri-apps/tauri-action@v1
+      - name: Build and sign
+        run: npm run tauri -- build ${{ matrix.args }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -101,27 +106,53 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        with:
-          # Set on a tag push (uploads to that release), empty on manual builds.
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
 
-      # Manual builds have no release, so expose the bundles as run artifacts.
-      - if: github.event_name == 'workflow_dispatch'
+      # Only the installers, flat: the .dmg on macOS, the setup .exe and .msi on
+      # Windows.
+      - name: Collect installers
+        shell: bash
+        run: |
+          mkdir dist
+          find src-tauri/target -path '*/release/bundle/*' \
+            \( -name '*.dmg' -o -name '*-setup.exe' -o -name '*.msi' \) \
+            -exec cp {} dist/ \;
+          ls -l dist
+
+      # Uploaded unzipped (one artifact per installer, named after the file).
+      - if: runner.os == 'macOS'
         uses: actions/upload-artifact@v7
         with:
-          name: spotiamp-${{ matrix.artifact }}
-          path: |
-            src-tauri/target/release/bundle/**
-            src-tauri/target/*/release/bundle/**
+          path: dist/*.dmg
+          archive: false
           if-no-files-found: error
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-setup.exe
+          archive: false
+          if-no-files-found: error
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.msi
+          archive: false
+          if-no-files-found: error
+
+      - name: Attach installers to the draft release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" dist/* --repo "${{ github.repository }}" --clobber
 
   publish-release:
     needs: [create-release, bundle]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Publish the drafted release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api --method PATCH "repos/${{ github.repository }}/releases/${{ needs.create-release.outputs.release_id }}" -F draft=false
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false
