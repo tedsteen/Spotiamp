@@ -10,6 +10,7 @@ use thiserror::Error;
 use crate::oauth::OAuthError;
 use crate::spotify::{SpotifySession, pending_auth_url};
 mod app_window;
+pub mod browse;
 mod oauth;
 mod player_window;
 mod playlist_window;
@@ -160,6 +161,8 @@ pub fn run() {
             playlist_window::get_playlist_settings,
             playlist_window::set_uris,
             playlist_window::set_playlist_inner_size,
+            playlist_window::search_spotify,
+            playlist_window::get_my_playlists,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

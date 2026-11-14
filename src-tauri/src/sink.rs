@@ -45,11 +45,14 @@ impl Sink for SpotiampSink {
             if samples.len() > self.scratch.len() {
                 self.scratch.resize(samples.len().next_power_of_two(), 0.0);
             }
-            let volume = 100.0 / self.volume.load(std::sync::atomic::Ordering::Relaxed) as f32;
-            if volume > 0.0 {
+            // Undo the volume attenuation so the visualizer shows the same levels
+            // regardless of volume. At volume 0 there is nothing to show.
+            let volume = self.volume.load(std::sync::atomic::Ordering::Relaxed);
+            if volume > 0 {
+                let gain = 100.0 / volume as f32;
                 let mut visualizer = self.visualizer.lock().unwrap();
                 for (idx, s) in samples.iter().enumerate() {
-                    self.scratch[idx] = *s as f32 * volume;
+                    self.scratch[idx] = *s as f32 * gain;
                 }
                 visualizer.push_samples(&self.scratch[..samples.len()]);
             }

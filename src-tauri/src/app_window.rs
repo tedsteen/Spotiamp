@@ -593,34 +593,20 @@ fn handle_window_moved(
     state.refresh_both(anchor_window, follower_window);
     state.positions.insert(label.to_string(), position);
 
-    let Some(anchor) = state.rect(anchor_window.label()) else {
+    if state.rect(anchor_window.label()).is_none() {
         return;
-    };
-    if anchor_moved {
-        // The OS keeps the visible follower glued while the anchor moves (macOS
-        // child window / Windows window-procedure subclass). A hidden follower is
-        // left alone and snapped back to the docked spot when it is shown again
-        // (see `handle_follower_visibility_changed`) — moving it here would make a
-        // hidden window reappear.
-        if state.attachment.is_some() {
-            return;
-        }
-    } else {
-        if let Some(attachment) = state.attachment {
-            let Some(follower_size) = state.sizes.get(follower_window.label()).copied() else {
-                return;
-            };
-            if position == attachment.follower_position(anchor, follower_size) {
-                return;
-            }
-            // The follower is docked but reported a different position. This is a
-            // programmatic/OS move (e.g. being shown again after the anchor moved
-            // away), not the user dragging it loose — undocking is handled by
-            // DragStarted/DragEnded. Keep the attachment so it can be repositioned
-            // to the docked spot (see `handle_follower_visibility_changed`).
-            return;
-        }
-
+    }
+    // Only an undocked follower that moved is snapped here:
+    // - When the anchor moves, the OS keeps the visible follower glued (macOS child
+    //   window / Windows window-procedure subclass). A hidden follower is left alone
+    //   and snapped back to the docked spot when it is shown again (see
+    //   `handle_follower_visibility_changed`) — moving it here would make a hidden
+    //   window reappear.
+    // - A docked follower reporting a different position is a programmatic/OS move
+    //   (e.g. being shown again after the anchor moved away), not the user dragging
+    //   it loose — undocking is handled by DragStarted/DragEnded. The attachment is
+    //   kept so it can be repositioned to the docked spot.
+    if !anchor_moved && state.attachment.is_none() {
         snap_window_without_attachment(state, follower_window, anchor_window);
     }
 }

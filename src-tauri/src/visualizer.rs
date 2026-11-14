@@ -10,8 +10,10 @@ pub struct Visualizer {
     stream: Stream,
 }
 pub fn stereo_to_mono(in_v: &[f32]) -> Vec<f32> {
-    in_v.chunks_exact(2)
-        .map(|chunk| (chunk[0] + chunk[1]) / 2.0)
+    in_v.as_chunks::<2>()
+        .0
+        .iter()
+        .map(|[left, right]| (left + right) / 2.0)
         .collect()
 }
 
