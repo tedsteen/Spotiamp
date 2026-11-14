@@ -118,6 +118,9 @@ pub struct PlayerSettings {
     pub double_size_active: bool,
     pub volume: u16,
     pub show_playlist: bool,
+    /// Show the time left instead of the time elapsed (toggled by clicking it).
+    #[serde(default)]
+    pub show_remaining_time: bool,
 }
 
 impl Default for PlayerSettings {
@@ -127,6 +130,7 @@ impl Default for PlayerSettings {
             double_size_active: Default::default(),
             volume: 80,
             show_playlist: true,
+            show_remaining_time: false,
         }
     }
 }
@@ -230,6 +234,7 @@ playlist:
         assert_eq!(settings.player.volume, 86);
         assert!(settings.player.double_size_active);
         assert!(settings.player.window_state.inner_size.is_none());
+        assert!(!settings.player.show_remaining_time);
         assert_eq!(
             settings.playlist.window_state.get_position(),
             Some(LogicalPosition::new(636, 320))

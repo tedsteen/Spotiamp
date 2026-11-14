@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    account,
     oauth::{OAuthError, OAuthFlow},
     settings::Settings,
     sink::SpotiampSink,
@@ -24,6 +25,7 @@ use librespot::{
 };
 use oauth2::TokenResponse;
 use tauri::AppHandle;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use thiserror::Error;
 
 use crate::settings::get_config_dir;
@@ -62,6 +64,20 @@ impl SpotifySession {
     }
 
     pub async fn login(&self, app: &AppHandle) -> Result<(), SessionError> {
+        if account::previous_sign_in_died() {
+            log::warn!("The previous sign-in never finished, clearing the saved login");
+            Self::remove_cached_credentials();
+            app.dialog()
+                .message(
+                    "Spotiamp closed while signing in last time. This usually means the \
+                     account isn't Spotify Premium, which Spotiamp requires.\n\n\
+                     Please log in with a Premium account.",
+                )
+                .title("Spotiamp")
+                .kind(MessageDialogKind::Warning)
+                .show(|_| {});
+        }
+
         log::debug!("Getting credentials");
         let credentials = match self.cache.credentials() {
             Some(credentials) => credentials,
@@ -71,26 +87,41 @@ impl SpotifySession {
             }
         };
 
-        match self.inner.connect(credentials, true).await {
+        match self.connect(credentials).await {
             Ok(_) => {
-                log::debug!("Successfully connected with cached credentials");
+                log::debug!("Connected");
                 Ok(())
             }
             Err(e) => {
                 log::warn!(
                     "Failed to connect with cached credentials ({e:?}), re-authenticating..."
                 );
-                if let Some(config_dir) = get_config_dir() {
-                    let _ = std::fs::remove_file(config_dir.join("credentials.json"));
-                }
+                Self::remove_cached_credentials();
                 let new_credentials = Self::get_credentials_from_oauth(app).await?;
-                self.inner
-                    .connect(new_credentials, true)
+                self.connect(new_credentials)
                     .await
                     .map_err(|e| SessionError::ConnectError { e })?;
                 log::debug!("Successfully connected after re-authentication");
                 Ok(())
             }
+        }
+    }
+
+    /// Connect, guarded by the sign-in marker (see [`account`]): librespot exits
+    /// the process during this if the account isn't Premium.
+    async fn connect(&self, credentials: Credentials) -> Result<(), Error> {
+        account::mark_signing_in();
+        let result = self.inner.connect(credentials, true).await;
+        if result.is_ok() {
+            account::wait_for_account_type(&self.inner).await;
+        }
+        account::clear_signing_in();
+        result
+    }
+
+    fn remove_cached_credentials() {
+        if let Some(config_dir) = get_config_dir() {
+            let _ = std::fs::remove_file(config_dir.join("credentials.json"));
         }
     }
 
@@ -143,6 +174,15 @@ impl SpotifySession {
         *token_received.lock().unwrap() = true;
         let _ = window.close();
         let token = result.map_err(|e| SessionError::TokenExchangeFailure { e })?;
+
+        // Catch a non-Premium account before librespot exits the app over it.
+        match account::check_in_helper_process(token.access_token().secret()).await {
+            account::AccountCheck::Premium => log::info!("The account is Premium"),
+            account::AccountCheck::NotPremium => return Err(SessionError::NotPremium),
+            account::AccountCheck::Unknown(reason) => {
+                log::warn!("Could not check the account type ({reason}), continuing")
+            }
+        }
 
         Ok(Credentials::with_access_token(
             token.access_token().secret(),
@@ -321,6 +361,11 @@ pub enum SessionError {
 
     #[error("Could not get token ({e:?}")]
     TokenExchangeFailure { e: OAuthError },
+
+    #[error(
+        "Spotiamp requires a Spotify Premium account. Please start Spotiamp again and log in with a Premium account."
+    )]
+    NotPremium,
 }
 
 #[derive(Debug, Error)]

@@ -31,6 +31,21 @@ export function durationToString(durationInMs) {
     return `${m.toString().padStart(1, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Winamp's playlist running-time format: "M:SS", or "H:MM:SS" from an hour.
+ * @param {number} durationInMs
+ * @returns {string}
+ */
+export function durationToRunningTime(durationInMs) {
+    const totalSeconds = Math.floor(durationInMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+    return hours > 0
+        ? `${hours}:${minutes.toString().padStart(2, "0")}:${seconds}`
+        : `${minutes}:${seconds}`;
+}
+
 export class SpotifyUri {
     /**
      * @param {"track" | "playlist" | "album"} type

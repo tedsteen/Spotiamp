@@ -67,6 +67,11 @@ pub fn set_double_size(active: bool) {
 }
 
 #[tauri::command]
+pub fn set_show_remaining_time(active: bool) {
+    Settings::current_mut().player.show_remaining_time = active;
+}
+
+#[tauri::command]
 pub async fn take_latest_spectrum(player: State<'_, SharedPlayer>) -> Result<Vec<(f32, f32)>, ()> {
     Ok(player.lock().await.take_latest_spectrum())
 }
