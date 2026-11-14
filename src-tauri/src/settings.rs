@@ -125,6 +125,9 @@ pub struct PlayerSettings {
     pub shuffle: bool,
     #[serde(default)]
     pub repeat: bool,
+    /// -100 (left only) ..= 100 (right only), 0 is centered.
+    #[serde(default)]
+    pub balance: i16,
 }
 
 impl Default for PlayerSettings {
@@ -137,6 +140,7 @@ impl Default for PlayerSettings {
             show_remaining_time: false,
             shuffle: false,
             repeat: false,
+            balance: 0,
         }
     }
 }
@@ -242,6 +246,7 @@ playlist:
         assert!(settings.player.window_state.inner_size.is_none());
         assert!(!settings.player.show_remaining_time);
         assert!(!settings.player.shuffle && !settings.player.repeat);
+        assert_eq!(settings.player.balance, 0);
         assert_eq!(
             settings.playlist.window_state.get_position(),
             Some(LogicalPosition::new(636, 320))

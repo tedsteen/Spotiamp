@@ -78,6 +78,9 @@
   // Start from the saved settings, then toggled locally (writable $derived).
   let showRemainingTime = $derived(playerSettings.show_remaining_time);
   let shuffle = $derived(playerSettings.shuffle);
+  // -100 (left) ..= 100 (right), 0 is centered.
+  let balance = $derived(playerSettings.balance);
+  const BALANCE_SNAP = 15;
   let repeat = $derived(playerSettings.repeat);
 
   function toggleShuffle() {
@@ -97,7 +100,7 @@
     invoke("set_show_remaining_time", { active: showRemainingTime });
   }
   /**
-   * @type {'nothing' | 'seeking' | 'volume-change'}
+   * @type {'nothing' | 'seeking' | 'volume-change' | 'balance-change'}
    */
   let uiInputState = $state("nothing");
   /**
@@ -126,6 +129,18 @@
     stoppedOrUnavailable || (playerState == "paused" && numberDisplayHidden),
   );
   const volumeSpriteRow = $derived(Math.floor((volume / 100) * 27));
+  const balanceSpriteRow = $derived(Math.floor((Math.abs(balance) / 100) * 27));
+
+  /**
+   * Like Winamp, the balance snaps to the center when dragged close to it.
+   * @param {Event} event
+   */
+  function onBalanceInput(event) {
+    const value = Number(/** @type {HTMLInputElement} */ (event.currentTarget).value);
+    balance = Math.abs(value) < BALANCE_SNAP ? 0 : value;
+    /** @type {HTMLInputElement} */ (event.currentTarget).value = String(balance);
+    invoke("set_balance", { balance });
+  }
   const tickerOverrideText = $derived.by(() => {
     if (uiInputState == "seeking") {
       return loadedTrack
@@ -133,6 +148,10 @@
         : "NO TRACK LOADED";
     } else if (uiInputState == "volume-change") {
       return `VOLUME: ${volume}%`;
+    } else if (uiInputState == "balance-change") {
+      return balance == 0
+        ? "BALANCE: CENTER"
+        : `BALANCE: ${Math.abs(balance)}% ${balance < 0 ? "LEFT" : "RIGHT"}`;
     }
   });
 
@@ -508,6 +527,18 @@
   />
   <input
     type="range"
+    class="sprite balance-sprite"
+    style:--balance-row={balanceSpriteRow}
+    id="balance"
+    min="-100"
+    max="100"
+    value={balance}
+    oninput={onBalanceInput}
+    onmousedown={() => (uiInputState = "balance-change")}
+    onmouseup={() => (uiInputState = "nothing")}
+  />
+  <input
+    type="range"
     class="sprite seek-position-sprite"
     class:hidden={stoppedOrUnavailable}
     id="seek-position"
@@ -834,6 +865,37 @@
   }
 
   /* ------ /VOLUME ------ */
+
+  /* ------ BALANCE ------ */
+  /* Same layout as VOLUME.BMP; the balance strip starts 9px in. */
+  .balance-sprite {
+    --sprite-url: url(/src/static/assets/skins/base-2.91/BALANCE.BMP);
+    --sprite-x: 177px;
+    --sprite-y: 57px;
+    width: 38px;
+    height: 14px;
+    background-position: -9px 0px;
+  }
+
+  #balance {
+    appearance: none;
+    cursor: url(/src/static/assets/skins/base-2.91/VOLBAL.CUR), default;
+    background-position-y: calc(var(--balance-row) * -15px);
+  }
+
+  #balance::-webkit-slider-thumb {
+    background: url(/src/static/assets/skins/base-2.91/BALANCE.BMP);
+    appearance: none;
+    width: 14px;
+    height: 11px;
+    margin-bottom: 1px;
+    background-position: -15px 11px;
+  }
+
+  #balance::-webkit-slider-thumb:active {
+    background-position: 0px 11px;
+  }
+  /* ------ /BALANCE ------ */
 
   /* ------ CBUTTONS ------ */
   .control-buttons-sprite {
