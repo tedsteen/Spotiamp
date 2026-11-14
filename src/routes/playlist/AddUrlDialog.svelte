@@ -4,11 +4,11 @@
 -->
 <script>
   import { onMount } from "svelte";
-  import { SpotifyUri } from "$lib/spotify.svelte.js";
+  import { SpotifyUri } from "#lib/spotify.svelte.js";
 
   /**
    * @type {{
-   *   playlist: import('$lib/playlist.svelte').Playlist,
+   *   playlist: import('#lib/playlist.svelte.js').Playlist,
    *   onclose: () => void,
    * }}
    */

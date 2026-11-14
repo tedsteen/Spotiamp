@@ -1,4 +1,5 @@
 import { message } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
 class ReactiveWindowSize {
     width = $state(275.0);
@@ -23,6 +24,19 @@ class ReactiveWindowSize {
     }
 }
 export const REACTIVE_WINDOW_SIZE = new ReactiveWindowSize();
+
+/**
+ * Keep the native window the same size as the skin (REACTIVE_WINDOW_SIZE times
+ * the zoom). Call while initialising the page of a skinned window.
+ */
+export function syncNativeWindowSize() {
+    $effect(() => {
+        const { width, height, zoom } = REACTIVE_WINDOW_SIZE;
+        getCurrentWindow()
+            .setSize(new LogicalSize(width * zoom, height * zoom))
+            .catch((e) => console.warn("Could not resize the window", e));
+    });
+}
 
 export const enterExitViewportObserver = new IntersectionObserver(
     (entries) => {

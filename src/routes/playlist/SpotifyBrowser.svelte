@@ -9,16 +9,16 @@
     getMyPlaylists,
     searchSpotify,
     SpotifyUri,
-  } from "$lib/spotify.svelte.js";
+  } from "#lib/spotify.svelte.js";
 
   /**
-   * @typedef {import('$lib/spotify.svelte.js').BrowseItem} BrowseItem
-   * @typedef {import('$lib/spotify.svelte.js').SearchKind | "mine"} Tab
+   * @typedef {import('#lib/spotify.svelte.js').BrowseItem} BrowseItem
+   * @typedef {import('#lib/spotify.svelte.js').SearchKind | "mine"} Tab
    */
 
   /**
    * @type {{
-   *   playlist: import('$lib/playlist.svelte').Playlist,
+   *   playlist: import('#lib/playlist.svelte.js').Playlist,
    *   initialTab: Tab,
    *   onclose: () => void,
    * }}
@@ -35,6 +35,7 @@
   const SEARCH_DEBOUNCE_MS = 350;
 
   /** @type {Tab} */
+  // svelte-ignore state_referenced_locally (only the tab to start on)
   let tab = $state(initialTab);
   let query = $state("");
   /** @type {BrowseItem[]} */

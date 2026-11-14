@@ -5,24 +5,24 @@
     handleError,
     handleDrop,
     REACTIVE_WINDOW_SIZE,
-  } from "$lib/common.svelte.js";
+    syncNativeWindowSize,
+  } from "#lib/common.svelte.js";
   import {
     emitWindowEvent,
     subscribeToWindowEvent,
-  } from "$lib/events.svelte.js";
+  } from "#lib/events.svelte.js";
   import {
     durationToMMSS,
     durationToString,
     SpotifyTrack,
-  } from "$lib/spotify.svelte.js";
+  } from "#lib/spotify.svelte.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
-  import { Visualizer } from "$lib/visualizer.svelte";
+  import { Visualizer } from "#lib/visualizer.svelte.js";
   import {
     currentMonitor,
     getCurrentWindow,
-    LogicalSize,
     Window,
   } from "@tauri-apps/api/window";
   import {
@@ -34,7 +34,7 @@
     snapPosition,
     snapRectIntoBounds,
     STICKY_SNAP_DISTANCE,
-  } from "$lib/window-docking.svelte.js";
+  } from "#lib/window-docking.svelte.js";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data: playerSettings } = $props();
@@ -214,17 +214,7 @@
     REACTIVE_WINDOW_SIZE.setZoom(doubleSizeActive ? 2 : 1);
   });
 
-  $effect(() => {
-    const zoom = REACTIVE_WINDOW_SIZE.zoom;
-    getCurrentWindow()
-      .setSize(
-        new LogicalSize(
-          REACTIVE_WINDOW_SIZE.width * zoom,
-          REACTIVE_WINDOW_SIZE.height * zoom,
-        ),
-      )
-      .catch(() => {});
-  });
+  syncNativeWindowSize();
 
   onMount(() => {
     // Tick seek position and blink number display

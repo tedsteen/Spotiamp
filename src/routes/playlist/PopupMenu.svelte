@@ -38,6 +38,7 @@
   // The press that opened the menu ends with a mouseup on the bottom item
   // (it sits right on top of the opener). Ignore that one unless the pointer
   // moved away first.
+  // svelte-ignore state_referenced_locally (only how this menu was opened)
   let ignoreOpeningRelease = openedByPress;
 
   /**

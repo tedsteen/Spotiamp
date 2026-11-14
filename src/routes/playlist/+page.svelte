@@ -4,10 +4,11 @@
     range,
     handleDrop,
     REACTIVE_WINDOW_SIZE,
-  } from "$lib/common.svelte.js";
-  import { emitWindowEvent } from "$lib/events.svelte.js";
+    syncNativeWindowSize,
+  } from "#lib/common.svelte.js";
+  import { emitWindowEvent } from "#lib/events.svelte.js";
   import { onMount } from "svelte";
-  import { Playlist } from "$lib/playlist.svelte";
+  import { Playlist } from "#lib/playlist.svelte.js";
   import { invoke } from "@tauri-apps/api/core";
   import { Window } from "@tauri-apps/api/window";
   import PopupMenu from "./PopupMenu.svelte";
@@ -20,7 +21,7 @@
     SNAP_DISTANCE,
     snapPosition,
     STICKY_SNAP_DISTANCE,
-  } from "$lib/window-docking.svelte.js";
+  } from "#lib/window-docking.svelte.js";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data: playlistSettings } = $props();
@@ -39,6 +40,8 @@
   }
 
   applyInitialWindowSize();
+  // Resize the native window along with the skin (e.g. via the resize corner).
+  syncNativeWindowSize();
   const playlist = createInitialPlaylist();
 
   /**
@@ -253,7 +256,7 @@
   const EDGE_SCROLL_INTERVAL_MS = 80;
 
   /**
-   * @typedef {import('$lib/playlist.svelte').TrackRow} Row
+   * @typedef {import('#lib/playlist.svelte.js').TrackRow} Row
    */
 
   /**
@@ -446,7 +449,7 @@
   /** @type {"add" | "rem" | undefined} */
   let openMenu = $state();
   let menuOpenedByPress = $state(false);
-  /** @type {import('$lib/spotify.svelte.js').SearchKind | "mine" | undefined} */
+  /** @type {import('#lib/spotify.svelte.js').SearchKind | "mine" | undefined} */
   let browserTab = $state();
   let showAddUrl = $state(false);
 
