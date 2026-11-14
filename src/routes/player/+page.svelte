@@ -5,6 +5,7 @@
     handleError,
     handleDrop,
     REACTIVE_WINDOW_SIZE,
+    syncNativeWindowSize,
   } from "#lib/common.svelte.js";
   import {
     emitWindowEvent,
@@ -22,7 +23,6 @@
   import {
     currentMonitor,
     getCurrentWindow,
-    LogicalSize,
     Window,
   } from "@tauri-apps/api/window";
   import {
@@ -214,17 +214,7 @@
     REACTIVE_WINDOW_SIZE.setZoom(doubleSizeActive ? 2 : 1);
   });
 
-  $effect(() => {
-    const zoom = REACTIVE_WINDOW_SIZE.zoom;
-    getCurrentWindow()
-      .setSize(
-        new LogicalSize(
-          REACTIVE_WINDOW_SIZE.width * zoom,
-          REACTIVE_WINDOW_SIZE.height * zoom,
-        ),
-      )
-      .catch(() => {});
-  });
+  syncNativeWindowSize();
 
   onMount(() => {
     // Tick seek position and blink number display
