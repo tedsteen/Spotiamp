@@ -78,6 +78,23 @@
   // svelte-ignore state_referenced_locally (only the initial value)
   let showRemainingTime = $state(playerSettings.show_remaining_time);
 
+  // svelte-ignore state_referenced_locally (only the initial value)
+  let shuffle = $state(playerSettings.shuffle);
+  // svelte-ignore state_referenced_locally (only the initial value)
+  let repeat = $state(playerSettings.repeat);
+
+  function toggleShuffle() {
+    shuffle = !shuffle;
+    invoke("set_shuffle", { active: shuffle });
+    emitWindowEvent("playerWindow", { ShuffleChanged: shuffle });
+  }
+
+  function toggleRepeat() {
+    repeat = !repeat;
+    invoke("set_repeat", { active: repeat });
+    emitWindowEvent("playerWindow", { RepeatChanged: repeat });
+  }
+
   function toggleRemainingTime() {
     showRemainingTime = !showRemainingTime;
     invoke("set_show_remaining_time", { active: showRemainingTime });
@@ -398,6 +415,20 @@
     onclick={() => (showPlaylist = !showPlaylist)}
     aria-label="Toggle playlist"
   ></button>
+  <button
+    class="sprite shuffle-btn"
+    class:active={shuffle}
+    onclick={toggleShuffle}
+    aria-label="Toggle shuffle"
+    title="Shuffle"
+  ></button>
+  <button
+    class="sprite repeat-btn"
+    class:active={repeat}
+    onclick={toggleRepeat}
+    aria-label="Toggle repeat"
+    title="Repeat"
+  ></button>
   <div class="sprite playpause-sprite playpause-{playerState}"></div>
 
   <div
@@ -583,6 +614,38 @@
 
   button.playlist-btn-enabled {
     background-position-y: -73px;
+  }
+
+  /* SHUFREP.BMP rows: off, off pressed, on, on pressed (15px each). */
+  button.shuffle-btn,
+  button.repeat-btn {
+    --sprite-url: url(/src/static/assets/skins/base-2.91/SHUFREP.BMP);
+    --sprite-y: 89px;
+    height: 15px;
+    --row: 0;
+    background-position-y: calc(var(--row) * -15px);
+  }
+  button.shuffle-btn {
+    --sprite-x: 164px;
+    width: 47px;
+    background-position-x: -28px;
+  }
+  button.repeat-btn {
+    --sprite-x: 210px;
+    width: 28px;
+    background-position-x: 0px;
+  }
+  button.shuffle-btn:active,
+  button.repeat-btn:active {
+    --row: 1;
+  }
+  button.shuffle-btn.active,
+  button.repeat-btn.active {
+    --row: 2;
+  }
+  button.shuffle-btn.active:active,
+  button.repeat-btn.active:active {
+    --row: 3;
   }
 
   .stereo-mono-sprite {

@@ -72,6 +72,16 @@ pub fn set_show_remaining_time(active: bool) {
 }
 
 #[tauri::command]
+pub fn set_shuffle(active: bool) {
+    Settings::current_mut().player.shuffle = active;
+}
+
+#[tauri::command]
+pub fn set_repeat(active: bool) {
+    Settings::current_mut().player.repeat = active;
+}
+
+#[tauri::command]
 pub async fn take_latest_spectrum(player: State<'_, SharedPlayer>) -> Result<Vec<(f32, f32)>, ()> {
     Ok(player.lock().await.take_latest_spectrum())
 }
