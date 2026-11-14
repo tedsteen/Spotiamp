@@ -140,6 +140,11 @@ export class Playlist {
      * @type {TrackRow | undefined}
      */
     selectionAnchor = $state();
+    /**
+     * When true, the playlist ignores keyboard shortcuts (e.g. while a dialog
+     * covers the track list).
+     */
+    keyboardSuspended = false;
 
     /**
      * @argument {string[]} uris
@@ -165,6 +170,15 @@ export class Playlist {
         * @param {DocumentEventMap["keydown"]} e
         */
         const playlistKeyDownListener = (e) => {
+            const target = /** @type {HTMLElement | null} */ (e.target);
+            if (
+                this.keyboardSuspended ||
+                target?.tagName == "INPUT" ||
+                target?.tagName == "TEXTAREA" ||
+                target?.isContentEditable
+            ) {
+                return;
+            }
             if (e.key == "ArrowDown") {
                 e.preventDefault();
                 if (e.altKey) {
@@ -236,6 +250,7 @@ export class Playlist {
         this.focusedRow = undefined;
         this.selectionAnchor = undefined;
         this.loadedRow = undefined;
+        this.persist();
     }
 
     /**
@@ -286,7 +301,14 @@ export class Playlist {
      */
     async addUrls(urls) {
         for (const url of urls) {
-            await this.addUri(SpotifyUri.fromUrl(url));
+            let uri;
+            try {
+                uri = SpotifyUri.parse(url);
+            } catch (e) {
+                console.warn(`Ignoring '${url}'`, e);
+                continue;
+            }
+            await this.addUri(uri);
         }
         this.persist();
     }
@@ -420,6 +442,47 @@ export class Playlist {
             this.selectionAnchor = undefined;
         }
 
+        this.persist();
+    }
+
+    /**
+     * Keep only the selected rows (Winamp's "Crop").
+     */
+    cropToSelection() {
+        if (this.selectedRows.length === 0) {
+            return;
+        }
+        const kept = new Set(this.selectedRows);
+        if (this.loadedRow && !kept.has(this.loadedRow)) {
+            this.loadedRow = undefined;
+        }
+        this.rows = this.rows.filter((r) => kept.has(r));
+        this.persist();
+    }
+
+    /**
+     * Remove repeated tracks, keeping the first occurrence of each.
+     */
+    removeDuplicates() {
+        /** @type {Set<string>} */
+        const seen = new Set();
+        const rows = this.rows.filter((r) => {
+            const key = r.uri.asString;
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+        if (rows.length === this.rows.length) {
+            return;
+        }
+        const kept = new Set(rows);
+        if (this.loadedRow && !kept.has(this.loadedRow)) {
+            this.loadedRow = undefined;
+        }
+        this.selectedRows = this.selectedRows.filter((r) => kept.has(r));
+        this.rows = rows;
         this.persist();
     }
 

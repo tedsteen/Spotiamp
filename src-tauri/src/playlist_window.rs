@@ -1,9 +1,36 @@
-use tauri::{AppHandle, LogicalPosition, WebviewWindow};
+use tauri::{AppHandle, LogicalPosition, State, WebviewWindow};
 
 use crate::{
     app_window,
+    browse::{self, BrowseItem, SearchKind, SearchPage},
     settings::{InnerWindowSize, PlaylistSettings, Settings},
+    spotify::SharedPlayer,
 };
+
+#[tauri::command]
+pub async fn search_spotify(
+    query: String,
+    kind: SearchKind,
+    offset: u32,
+    player: State<'_, SharedPlayer>,
+) -> Result<SearchPage, String> {
+    let session = player.lock().await.session.librespot_session();
+    browse::search(&session, kind, &query, offset)
+        .await
+        .map_err(|e| {
+            log::warn!("Search failed: {e:?}");
+            e.to_string()
+        })
+}
+
+#[tauri::command]
+pub async fn get_my_playlists(player: State<'_, SharedPlayer>) -> Result<Vec<BrowseItem>, String> {
+    let session = player.lock().await.session.librespot_session();
+    browse::my_playlists(&session).await.map_err(|e| {
+        log::warn!("Loading playlists failed: {e:?}");
+        e.to_string()
+    })
+}
 
 #[tauri::command]
 pub fn get_playlist_settings() -> PlaylistSettings {

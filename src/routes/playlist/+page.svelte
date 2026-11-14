@@ -10,6 +10,9 @@
   import { Playlist } from "$lib/playlist.svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { Window } from "@tauri-apps/api/window";
+  import PopupMenu from "./PopupMenu.svelte";
+  import SpotifyBrowser from "./SpotifyBrowser.svelte";
+  import AddUrlDialog from "./AddUrlDialog.svelte";
   import {
     isDocked,
     makeTauriWindowDraggable,
@@ -432,6 +435,92 @@
     isDragging = false;
     lastEdgeScrollAt = 0;
   }
+
+  // ------ ADD / REM menus ------
+  // Positions (unscaled skin pixels) of the ADD and REM buttons in the
+  // bottom-left PLEDIT.BMP sprite, and of their popup sprites.
+  const ADD_BUTTON_X = 14;
+  const REM_BUTTON_X = 43;
+  const BUTTON_Y_IN_BAR = 8;
+
+  /** @type {"add" | "rem" | undefined} */
+  let openMenu = $state();
+  let menuOpenedByPress = $state(false);
+  /** @type {import('$lib/spotify.svelte.js').SearchKind | "mine" | undefined} */
+  let browserTab = $state();
+  let showAddUrl = $state(false);
+
+  const bottomBarTop = $derived((playlist.height - 1) * 29 - 9);
+  const menuButtonY = $derived(bottomBarTop + BUTTON_Y_IN_BAR);
+
+  $effect(() => {
+    playlist.keyboardSuspended = browserTab !== undefined || showAddUrl;
+  });
+
+  /** @type {{title: string, sprite: [number, number], action: () => void}[]} */
+  const addMenuItems = [
+    {
+      title: "Add a Spotify link",
+      sprite: [0, 111],
+      action: () => {
+        browserTab = undefined;
+        showAddUrl = true;
+      },
+    },
+    {
+      title: "Add from your Spotify playlists",
+      sprite: [0, 130],
+      action: () => {
+        showAddUrl = false;
+        browserTab = "mine";
+      },
+    },
+    {
+      title: "Search Spotify",
+      sprite: [0, 149],
+      action: () => {
+        showAddUrl = false;
+        browserTab = "tracks";
+      },
+    },
+  ];
+
+  /** @type {{title: string, sprite: [number, number], action: () => void}[]} */
+  const remMenuItems = [
+    {
+      title: "Remove all",
+      sprite: [54, 111],
+      action: () => playlist.clear(),
+    },
+    {
+      title: "Crop (keep only the selected tracks)",
+      sprite: [54, 130],
+      action: () => playlist.cropToSelection(),
+    },
+    {
+      title: "Remove selected",
+      sprite: [54, 149],
+      action: () => playlist.removeSelected(),
+    },
+    {
+      title: "Remove duplicates",
+      sprite: [54, 168],
+      action: () => playlist.removeDuplicates(),
+    },
+  ];
+
+  /**
+   * @param {MouseEvent} e
+   * @param {"add" | "rem"} menu
+   */
+  function onMenuButtonDown(e, menu) {
+    if (e.button !== 0) {
+      return;
+    }
+    e.preventDefault();
+    menuOpenedByPress = true;
+    openMenu = menu;
+  }
 </script>
 
 <span
@@ -535,6 +624,58 @@
   ></div>
 
   <div class="draggable-corner" use:makeResizable></div>
+
+  <!-- ADD / REM buttons (drawn by the bottom-left sprite) -->
+  <div
+    class="menu-button"
+    role="button"
+    tabindex="-1"
+    title="Add"
+    style:--x={`${ADD_BUTTON_X}px`}
+    style:--y={`${menuButtonY}px`}
+    onmousedown={(e) => onMenuButtonDown(e, "add")}
+  ></div>
+  <div
+    class="menu-button"
+    role="button"
+    tabindex="-1"
+    title="Remove"
+    style:--x={`${REM_BUTTON_X}px`}
+    style:--y={`${menuButtonY}px`}
+    onmousedown={(e) => onMenuButtonDown(e, "rem")}
+  ></div>
+
+  {#if openMenu == "add"}
+    <PopupMenu
+      items={addMenuItems}
+      x={ADD_BUTTON_X}
+      y={menuButtonY}
+      barSprite={[48, 111]}
+      openedByPress={menuOpenedByPress}
+      onclose={() => (openMenu = undefined)}
+    />
+  {:else if openMenu == "rem"}
+    <PopupMenu
+      items={remMenuItems}
+      x={REM_BUTTON_X}
+      y={menuButtonY}
+      barSprite={[100, 111]}
+      openedByPress={menuOpenedByPress}
+      onclose={() => (openMenu = undefined)}
+    />
+  {/if}
+
+  {#if browserTab}
+    <SpotifyBrowser
+      {playlist}
+      initialTab={browserTab}
+      onclose={() => (browserTab = undefined)}
+    />
+  {/if}
+
+  {#if showAddUrl}
+    <AddUrlDialog {playlist} onclose={() => (showAddUrl = false)} />
+  {/if}
 </span>
 
 <style>
@@ -561,6 +702,15 @@
     top: calc(((var(--y)) * 29px - var(--height)) * var(--zoom));
     display: inline-block;
   }
+  .menu-button {
+    position: absolute;
+    left: calc(var(--x) * var(--zoom));
+    top: calc(var(--y) * var(--zoom));
+    width: calc(22px * var(--zoom));
+    height: calc(18px * var(--zoom));
+    z-index: 1001;
+  }
+
   /* ------ TRACKS ------ */
   .tracks-container {
     margin-top: calc(20px * var(--zoom));

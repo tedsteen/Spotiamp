@@ -55,6 +55,12 @@ impl Default for SpotifySession {
 }
 
 impl SpotifySession {
+    /// A handle to the underlying librespot session (cheap to clone), so callers
+    /// can make network requests without holding the player lock.
+    pub fn librespot_session(&self) -> Session {
+        self.inner.clone()
+    }
+
     pub async fn login(&self, app: &AppHandle) -> Result<(), SessionError> {
         log::debug!("Getting credentials");
         let credentials = match self.cache.credentials() {

@@ -71,10 +71,48 @@ export class SpotifyUri {
 
         throw `${url} does not match a spotify URL`;
     }
+
+    /**
+     * Parse either a `spotify:` URI or an open.spotify.com URL.
+     * @param {string} text
+     * @returns {SpotifyUri}
+     */
+    static parse(text) {
+        const trimmed = text.trim();
+        return trimmed.startsWith("spotify:")
+            ? SpotifyUri.fromString(trimmed)
+            : SpotifyUri.fromUrl(trimmed);
+    }
 }
 
 const spotifyUriRe = /spotify:(.*):(.{22})/;
-const spotifyUrlRe = /https:\/\/open.spotify.com\/(.*)\/(.{22})/;
+// Also matches localised links (open.spotify.com/intl-sv/track/...) and ignores
+// any trailing query string (?si=...).
+const spotifyUrlRe = /https:\/\/open\.spotify\.com\/(?:intl-[\w-]+\/)?(\w+)\/([A-Za-z0-9]{22})/;
+
+/**
+ * @typedef {{uri: string, name: string, subtitle: string, info: string, playable: boolean}} BrowseItem
+ * @typedef {"tracks" | "albums" | "playlists"} SearchKind
+ */
+
+/**
+ * Search Spotify (done in the backend through the librespot session).
+ * @param {string} query
+ * @param {SearchKind} kind
+ * @param {number} [offset]
+ * @returns {Promise<{items: BrowseItem[], next_offset: number | null}>}
+ */
+export function searchSpotify(query, kind, offset = 0) {
+    return invoke("search_spotify", { query, kind, offset });
+}
+
+/**
+ * The playlists in the user's Spotify library.
+ * @returns {Promise<BrowseItem[]>}
+ */
+export function getMyPlaylists() {
+    return invoke("get_my_playlists");
+}
 
 export class SpotifyTrack {
     /**
