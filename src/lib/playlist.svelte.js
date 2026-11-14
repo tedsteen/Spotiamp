@@ -166,6 +166,14 @@ export class Playlist {
      * covers the track list).
      */
     keyboardSuspended = false;
+    /** Play in random order (see {@link Playlist.shuffleTarget}). */
+    shuffle = false;
+    /** Start over from the top after the last track. */
+    repeat = false;
+    /** @type {Set<TrackRow>} rows already played in this shuffle round */
+    shufflePlayed = new Set();
+    /** @type {TrackRow[]} shuffled rows played so far, for "previous" */
+    shuffleHistory = [];
 
     /**
      * @argument {string[]} uris
@@ -227,7 +235,11 @@ export class Playlist {
         const playerWindowSubscription = subscribeToWindowEvent(
             "playerWindow",
             (event) => {
-                if (event.NextPressed !== undefined) {
+                if (event.ShuffleChanged !== undefined) {
+                    this.setShuffle(event.ShuffleChanged);
+                } else if (event.RepeatChanged !== undefined) {
+                    this.repeat = event.RepeatChanged;
+                } else if (event.NextPressed !== undefined) {
                     this.next(true);
                 } else if (event.PreviousPressed !== undefined) {
                     this.previous(true);
@@ -248,6 +260,11 @@ export class Playlist {
                     }
                 });
             }
+        });
+
+        invoke("get_player_settings").then((/** @type {import('./common.svelte').PlayerSettings} */ settings) => {
+            this.setShuffle(settings.shuffle);
+            this.repeat = settings.repeat;
         });
 
         (async () => {
@@ -516,13 +533,27 @@ export class Playlist {
     }
 
     /**
+     * Turn shuffle on or off. Turning it on starts a new shuffle round.
+     * @param {boolean} active
+     */
+    setShuffle(active) {
+        this.shuffle = active;
+        this.shufflePlayed = new Set();
+        this.shuffleHistory = [];
+    }
+
+    /**
      * @param {number} offset
      * @param {boolean} skipUnavailable
+     * @param {number} [attemptsLeft] guards against looping forever (e.g. repeat
+     *   with only unavailable tracks)
      * @returns {Promise<boolean>} true if the end in that direction has been reached
      */
-    async move(offset, skipUnavailable) {
-        const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
-        const row = this.rows[currRowIndex + offset];
+    async move(offset, skipUnavailable, attemptsLeft = this.rows.length) {
+        if (attemptsLeft <= 0) {
+            return true;
+        }
+        const row = this.shuffle ? this.shuffleTarget(offset) : this.sequentialTarget(offset);
         if (!row) {
             return true;
         }
@@ -530,11 +561,60 @@ export class Playlist {
         if (row instanceof TrackRow) {
             const track = await row.loadTrack();
             if (track && skipUnavailable && track.unavailable) {
-                return await this.move(offset, skipUnavailable);
+                return await this.move(offset, skipUnavailable, attemptsLeft - 1);
             }
         }
 
         return false;
+    }
+
+    /**
+     * The row `offset` steps from the loaded one, wrapping around with repeat on.
+     * @param {number} offset
+     * @returns {TrackRow | undefined}
+     */
+    sequentialTarget(offset) {
+        const currRowIndex = this.loadedRow ? this.rows.indexOf(this.loadedRow) : 0;
+        const index = currRowIndex + offset;
+        if (this.repeat && this.rows.length > 0) {
+            return this.rows[((index % this.rows.length) + this.rows.length) % this.rows.length];
+        }
+        return this.rows[index];
+    }
+
+    /**
+     * Like Winamp: every track plays once, in random order, per round. A new
+     * round starts when all have played and repeat is on. Previous goes back
+     * through the tracks played so far.
+     * @param {number} offset
+     * @returns {TrackRow | undefined}
+     */
+    shuffleTarget(offset) {
+        if (offset < 0) {
+            while (this.shuffleHistory.length > 0) {
+                const row = this.shuffleHistory.pop();
+                if (row && this.rows.includes(row)) {
+                    return row;
+                }
+            }
+            return this.sequentialTarget(offset);
+        }
+
+        const current = this.loadedRow;
+        if (current) {
+            this.shufflePlayed.add(current);
+        }
+        let candidates = this.rows.filter((r) => !this.shufflePlayed.has(r));
+        if (candidates.length == 0 && this.repeat) {
+            this.shufflePlayed = new Set();
+            candidates = this.rows.filter((r) => r != current);
+        }
+        const next = candidates[Math.floor(Math.random() * candidates.length)];
+        // Only remember where we came from when actually moving on.
+        if (next && current) {
+            this.shuffleHistory.push(current);
+        }
+        return next;
     }
 
     /**

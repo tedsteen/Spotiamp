@@ -34,9 +34,8 @@
   ];
   const SEARCH_DEBOUNCE_MS = 350;
 
-  /** @type {Tab} */
-  // svelte-ignore state_referenced_locally (only the tab to start on)
-  let tab = $state(initialTab);
+  /** @type {Tab} starts at `initialTab`, then changed by the tab buttons */
+  let tab = $derived(initialTab);
   let query = $state("");
   /** @type {BrowseItem[]} */
   let items = $state([]);

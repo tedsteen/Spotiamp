@@ -1,5 +1,8 @@
 use std::{
-    sync::{Arc, Mutex, atomic::AtomicU16},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicI16, AtomicU16},
+    },
     time::Duration,
 };
 
@@ -194,6 +197,7 @@ pub struct SpotifyPlayer {
     player: Arc<Player>,
     pub session: SpotifySession,
     volume: Arc<AtomicU16>,
+    balance: Arc<AtomicI16>,
 
     visualizer: Arc<Mutex<Visualizer>>,
 }
@@ -232,6 +236,7 @@ impl SpotifyPlayer {
         }
 
         let volume = Arc::new(AtomicU16::new(Settings::current().player.volume));
+        let balance = Arc::new(AtomicI16::new(Settings::current().player.balance));
         let visualizer = Arc::new(Mutex::new(Visualizer::new()));
         let player = Player::new(
             player_config,
@@ -242,9 +247,16 @@ impl SpotifyPlayer {
             {
                 let visualizer = visualizer.clone();
                 let volume = volume.clone();
+                let balance = balance.clone();
                 move || {
                     let audio_format = AudioFormat::F32;
-                    Box::new(SpotiampSink::new(None, audio_format, visualizer, volume))
+                    Box::new(SpotiampSink::new(
+                        None,
+                        audio_format,
+                        visualizer,
+                        volume,
+                        balance,
+                    ))
                 }
             },
         );
@@ -253,6 +265,7 @@ impl SpotifyPlayer {
             player,
             session,
             volume,
+            balance,
             visualizer,
         }
     }
@@ -329,6 +342,14 @@ impl SpotifyPlayer {
         self.volume
             .store(volume, std::sync::atomic::Ordering::Relaxed);
         self.session.cache.save_volume(volume);
+    }
+
+    /// -100 (left only) ..= 100 (right only).
+    pub fn set_balance(&mut self, balance: i16) {
+        self.balance.store(
+            balance.clamp(-100, 100),
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }
 
     pub fn get_volume(&self) -> u16 {

@@ -62,6 +62,13 @@ pub async fn set_volume(volume: u16, player: State<'_, SharedPlayer>) -> Result<
 }
 
 #[tauri::command]
+pub async fn set_balance(balance: i16, player: State<'_, SharedPlayer>) -> Result<(), ()> {
+    player.lock().await.set_balance(balance);
+    Settings::current_mut().player.balance = balance;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_double_size(active: bool) {
     Settings::current_mut().player.double_size_active = active;
 }
@@ -69,6 +76,16 @@ pub fn set_double_size(active: bool) {
 #[tauri::command]
 pub fn set_show_remaining_time(active: bool) {
     Settings::current_mut().player.show_remaining_time = active;
+}
+
+#[tauri::command]
+pub fn set_shuffle(active: bool) {
+    Settings::current_mut().player.shuffle = active;
+}
+
+#[tauri::command]
+pub fn set_repeat(active: bool) {
+    Settings::current_mut().player.repeat = active;
 }
 
 #[tauri::command]
