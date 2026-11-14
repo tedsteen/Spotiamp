@@ -14,6 +14,7 @@
   import PopupMenu from "./PopupMenu.svelte";
   import SpotifyBrowser from "./SpotifyBrowser.svelte";
   import AddUrlDialog from "./AddUrlDialog.svelte";
+  import BitmapText from "../../BitmapText.svelte";
   import {
     isDocked,
     makeTauriWindowDraggable,
@@ -625,6 +626,14 @@
     style:--y={playlist.height - 1}
     style:--x={playlist.width - 9}
   ></div>
+
+  <!-- selected/total running time, in the bottom-right black box -->
+  <BitmapText
+    text={playlist.runningTime}
+    x={playlist.width * 25 - 143}
+    y={(playlist.height - 1) * 29 + 1}
+    maxChars={17}
+  />
 
   <div class="draggable-corner" use:makeResizable></div>
 

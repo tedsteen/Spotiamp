@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { enterExitViewportObserver, REACTIVE_WINDOW_SIZE } from "./common.svelte";
 import { emitWindowEvent, subscribeToWindowEvent } from "./events.svelte";
-import { SpotifyTrack, SpotifyUri } from "./spotify.svelte";
+import { durationToRunningTime, SpotifyTrack, SpotifyUri } from "./spotify.svelte";
 
 class PlaylistRow {
     /**
@@ -140,6 +140,27 @@ export class Playlist {
      * @type {TrackRow | undefined}
      */
     selectionAnchor = $state();
+    /**
+     * "selected/total" length, as in Winamp's playlist bottom bar. A "+" means
+     * some lengths aren't known yet (track metadata loads lazily).
+     */
+    runningTime = $derived.by(() => {
+        /** @param {TrackRow[]} rows */
+        const total = (rows) => {
+            let ms = 0;
+            let incomplete = false;
+            for (const row of rows) {
+                if (row.track) {
+                    ms += row.track.durationInMs;
+                } else {
+                    incomplete = true;
+                }
+            }
+            return durationToRunningTime(ms) + (incomplete ? "+" : "");
+        };
+        return `${total(this.selectedRows)}/${total(this.rows)}`;
+    });
+
     /**
      * When true, the playlist ignores keyboard shortcuts (e.g. while a dialog
      * covers the track list).
