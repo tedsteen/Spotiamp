@@ -51,8 +51,9 @@ windows = { version = "0.62", features = [
 incremental = true # Compile your binary in smaller steps.
 
 [profile.release]
-codegen-units = 1 # Allows LLVM to perform better optimization.
-lto = true        # Enables link-time-optimizations.
+# Thin LTO with the default codegen units: about half the build time of fat LTO
+# with codegen-units = 1, for a ~24% bigger binary.
+lto = "thin"
 
 # NOTE: This causes a crash at startup around audio. Not sure why
 # opt-level = "s" # Prioritizes small binary size. Use `3` if you prefer speed.

@@ -1,0 +1,55 @@
+name: check
+
+# Lint, type-check and test pull requests and master.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # No extra system packages needed for Tauri on macOS (unlike Linux).
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - name: Frontend type check
+        run: npm run check
+
+      # Also produces ../build, which tauri's generate_context! embeds at compile time.
+      - name: Frontend build
+        run: npm run build
+
+      - name: rustfmt
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: tests
+        working-directory: src-tauri
+        run: cargo test --locked
