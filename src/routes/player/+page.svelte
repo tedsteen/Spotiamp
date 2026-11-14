@@ -75,6 +75,13 @@
   }
   let showPlaylist = $state(initialShowPlaylist());
   let doubleSizeActive = $state(initialDoubleSizeActive());
+  // svelte-ignore state_referenced_locally (only the initial value)
+  let showRemainingTime = $state(playerSettings.show_remaining_time);
+
+  function toggleRemainingTime() {
+    showRemainingTime = !showRemainingTime;
+    invoke("set_show_remaining_time", { active: showRemainingTime });
+  }
   /**
    * @type {'nothing' | 'seeking' | 'volume-change'}
    */
@@ -85,7 +92,14 @@
   let playerState = $state("stopped");
   let numberDisplayHidden = $state(true);
 
-  const currentTime = $derived(durationToMMSS(seekPosition));
+  const remainingTimeShown = $derived(showRemainingTime && !!loadedTrack);
+  const currentTime = $derived(
+    durationToMMSS(
+      remainingTimeShown && loadedTrack
+        ? Math.max(0, loadedTrack.durationInMs - seekPosition)
+        : seekPosition,
+    ),
+  );
   const trackDisplayText = $derived(
     loadedTrack
       ? `${loadedTrack.displayName} (${loadedTrack.displayDuration})`
@@ -419,6 +433,9 @@
     y={27}
   />
   <div class:hidden={timeDisplayHidden}>
+    {#if remainingTimeShown}
+      <div class="sprite minus-sign"></div>
+    {/if}
     <NumberDisplay
       number={currentTime.m.toString().padStart(2, "0")}
       x={48}
@@ -430,6 +447,12 @@
       y={26}
     />
   </div>
+  <!-- Clicking the time toggles between elapsed and remaining, like Winamp. -->
+  <button
+    class="time-toggle"
+    aria-label="Toggle elapsed/remaining time"
+    onclick={toggleRemainingTime}
+  ></button>
   {#each visualizer.bars as bar}
     <div
       class="visualizer-bar"
@@ -583,6 +606,27 @@
   .stereo-mono-sprite-enabled {
     background-position-y: 0px;
   }
+
+  /* ------ TIME DISPLAY ------ */
+  /* Winamp draws the minus sign with the middle bar of the "2" in NUMBERS.BMP. */
+  .minus-sign {
+    --sprite-url: url(/src/static/assets/skins/base-2.91/NUMBERS.BMP);
+    --sprite-x: 38px;
+    --sprite-y: 32px;
+    width: 5px;
+    height: 1px;
+    background-position: -20px -6px;
+  }
+
+  button.time-toggle {
+    position: absolute;
+    left: calc(36px * var(--zoom));
+    top: calc(26px * var(--zoom));
+    width: calc(63px * var(--zoom));
+    height: calc(13px * var(--zoom));
+    background: transparent;
+  }
+  /* ------ /TIME DISPLAY ------ */
 
   /* ------ SEEK POSITION ------ */
   .seek-position-sprite {
