@@ -1,11 +1,15 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
+// Tauri doesn't have a Node.js server to do proper SSR
+// so we use adapter-static to prerender the app (SSG).
+// See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
+import adapter from "@sveltejs/adapter-static";
 
 const host = process.env.TAURI_DEV_HOST;
 
-// https://vitejs.dev/config/
-export default defineConfig(async () => ({
-  plugins: [sveltekit()],
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [sveltekit({ adapter: adapter() })],
   build: {
     target: ["chrome87", "edge88", "safari14"],
     cssTarget: ["chrome87", "edge88", "safari14"],
@@ -22,14 +26,14 @@ export default defineConfig(async () => ({
     host: host || false,
     hmr: host
       ? {
-        protocol: "ws",
-        host,
-        port: 1421,
-      }
+          protocol: "ws",
+          host,
+          port: 1421,
+        }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
   },
-}));
+});

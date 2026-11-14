@@ -15,13 +15,13 @@ name = "spotiamp_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2.12", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.9.34-depricated"
+serde-saphyr = "2.1"
 
 thiserror = "2"
 log = "0.4"
@@ -32,17 +32,16 @@ audioviz = { version = "0.6", default-features = false, features = ["spectrum"] 
 oauth2 = "5.0"
 rustls = "0.23"
 axum = { version = "0.8", default-features = false, features = ["http1", "query", "tokio"] }
-tokio = { version = "1.48", default-features = false, features = ["net", "sync"] }
-url = "2.5"
+tokio = { version = "1.54", default-features = false, features = ["net", "sync"] }
 directories = "6.0"
-tauri-plugin-dialog = "2.7"
+tauri-plugin-dialog = "2.8"
 protobuf = "3.7"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3.2", features = ["NSGraphics", "NSWindow"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",

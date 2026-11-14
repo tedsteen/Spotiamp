@@ -5,20 +5,20 @@
     handleError,
     handleDrop,
     REACTIVE_WINDOW_SIZE,
-  } from "$lib/common.svelte.js";
+  } from "#lib/common.svelte.js";
   import {
     emitWindowEvent,
     subscribeToWindowEvent,
-  } from "$lib/events.svelte.js";
+  } from "#lib/events.svelte.js";
   import {
     durationToMMSS,
     durationToString,
     SpotifyTrack,
-  } from "$lib/spotify.svelte.js";
+  } from "#lib/spotify.svelte.js";
   import TextTicker from "../../TextTicker.svelte";
   import NumberDisplay from "../../NumberDisplay.svelte";
   import { onMount } from "svelte";
-  import { Visualizer } from "$lib/visualizer.svelte";
+  import { Visualizer } from "#lib/visualizer.svelte.js";
   import {
     currentMonitor,
     getCurrentWindow,
@@ -34,7 +34,7 @@
     snapPosition,
     snapRectIntoBounds,
     STICKY_SNAP_DISTANCE,
-  } from "$lib/window-docking.svelte.js";
+  } from "#lib/window-docking.svelte.js";
 
   /** @type {{data: import('./$types').PageData}} */
   const { data: playerSettings } = $props();

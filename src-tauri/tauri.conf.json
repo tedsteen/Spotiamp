@@ -10,7 +10,6 @@
     "frontendDist": "../build"
   },
   "app": {
-    "withGlobalTauri": true,
     "security": {
       "csp": null
     }
