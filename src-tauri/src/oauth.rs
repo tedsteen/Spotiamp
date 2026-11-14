@@ -99,7 +99,11 @@ impl OAuthFlow {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (auth_url, _) = client
             .authorize_url(CsrfToken::new_random)
-            .add_scopes(vec![Scope::new("streaming".to_string())])
+            .add_scopes(vec![
+                Scope::new("streaming".to_string()),
+                // To check the account is Premium before connecting (see `account`).
+                Scope::new("user-read-private".to_string()),
+            ])
             .set_pkce_challenge(pkce_challenge)
             .url();
 

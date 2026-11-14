@@ -32,7 +32,7 @@ audioviz = { version = "0.6", default-features = false, features = ["spectrum"] 
 oauth2 = "5.0"
 rustls = "0.23"
 axum = { version = "0.8", default-features = false, features = ["http1", "query", "tokio"] }
-tokio = { version = "1.54", default-features = false, features = ["net", "sync"] }
+tokio = { version = "1.54", default-features = false, features = ["net", "sync", "time"] }
 directories = "6.0"
 tauri-plugin-dialog = "2.8"
 protobuf = "3.7"

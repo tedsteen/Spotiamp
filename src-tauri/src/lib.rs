@@ -9,6 +9,7 @@ use thiserror::Error;
 
 use crate::oauth::OAuthError;
 use crate::spotify::{SpotifySession, pending_auth_url};
+mod account;
 mod app_window;
 pub mod browse;
 mod oauth;
@@ -28,7 +29,7 @@ enum StartError {
         e: tauri::Error,
     },
 
-    #[error("Failed to login ({e:?}")]
+    #[error("{e}")]
     LoginFailed { e: SessionError },
 }
 
