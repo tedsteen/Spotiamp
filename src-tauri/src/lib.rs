@@ -156,6 +156,7 @@ pub fn run() {
             player_window::get_player_settings,
             player_window::set_volume,
             player_window::set_double_size,
+            player_window::set_show_remaining_time,
             player_window::take_latest_spectrum,
             player_window::seek,
             player_window::set_playlist_window_visible,
