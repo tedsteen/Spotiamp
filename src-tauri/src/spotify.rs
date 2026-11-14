@@ -89,7 +89,7 @@ impl SpotifySession {
 
         match self.connect(credentials).await {
             Ok(_) => {
-                log::debug!("Successfully connected with cached credentials");
+                log::debug!("Connected");
                 Ok(())
             }
             Err(e) => {
@@ -176,12 +176,12 @@ impl SpotifySession {
         let token = result.map_err(|e| SessionError::TokenExchangeFailure { e })?;
 
         // Catch a non-Premium account before librespot exits the app over it.
-        match account::product(token.access_token().secret()).await {
-            Ok(product) if !account::is_premium(&product) => {
-                return Err(SessionError::NotPremium { product });
+        match account::check_in_helper_process(token.access_token().secret()).await {
+            account::AccountCheck::Premium => log::info!("The account is Premium"),
+            account::AccountCheck::NotPremium => return Err(SessionError::NotPremium),
+            account::AccountCheck::Unknown(reason) => {
+                log::warn!("Could not check the account type ({reason}), continuing")
             }
-            Ok(_) => {}
-            Err(e) => log::warn!("Could not check the account type ({e}), continuing"),
         }
 
         Ok(Credentials::with_access_token(
@@ -363,9 +363,9 @@ pub enum SessionError {
     TokenExchangeFailure { e: OAuthError },
 
     #[error(
-        "Spotiamp requires a Spotify Premium account, and this one is \"{product}\". Please start Spotiamp again and log in with a Premium account."
+        "Spotiamp requires a Spotify Premium account. Please start Spotiamp again and log in with a Premium account."
     )]
-    NotPremium { product: String },
+    NotPremium,
 }
 
 #[derive(Debug, Error)]

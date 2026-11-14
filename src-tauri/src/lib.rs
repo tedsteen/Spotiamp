@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use crate::oauth::OAuthError;
 use crate::spotify::{SpotifySession, pending_auth_url};
-mod account;
+pub mod account;
 mod app_window;
 pub mod browse;
 mod oauth;
